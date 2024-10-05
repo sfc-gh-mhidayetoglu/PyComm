@@ -1,1 +1,1 @@
-python matmul.py
+deepspeed matmul.py
