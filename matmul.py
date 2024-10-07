@@ -44,7 +44,7 @@ C_part = torch.empty(hidden_dim, batch_size//DP, dtype=torch.bfloat16, device=my
 list_C_part = [C_partial.narrow(0, i * hidden_dim//TP, hidden_dim//TP) for i in range(0, hidden_dim, hidden_dim//TP)] # TP x (n/TP, b/DP)
 
 if my_rank == root_rank:
-    print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB\n")
+    print("list_A " + str(len(list_A)) + " size " + str(sum([A.element_size() * A.nelement() for A in list_A]) / 1e6) + " MB\n")
     print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
     print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
     print("C_part " + str(C_part.size()) + " size " + str(C_part.element_size() * C_part.nelement() / 1e6) + " MB\n")
