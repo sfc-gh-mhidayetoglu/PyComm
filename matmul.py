@@ -36,7 +36,7 @@ if my_rank == root_rank:
         exit()
 
 # allocate memory
-list_A = [torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) for _ in range(num_layers)] # (n, n/TP)
+list_A = [torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) for _ in range(num_layers)] # l x (n, n/TP)
 B = torch.randn(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device)     # (n/TP, b/ DP)
 C = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device)     # (n/TP, b/DP)
 C_part = torch.empty(hidden_dim, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n, b/DP)
@@ -48,7 +48,7 @@ if my_rank == root_rank:
     print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
     print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
     print("C_part " + str(C_part.size()) + " size " + str(C_part.element_size() * C_part.nelement() / 1e6) + " MB\n")
-    print("list_C_part " + str(len(list_C_part)) + " size " + str(sum([C_partial.element_size() * C_partial.nelement() for C_partial in list_C_part]) / 1e6) + " MB\n")
+    print("list_C_part " + str(len(list_C_part)) + " size " + str(sum([C_part.element_size() * C_part.nelement() for C_part in list_C_part]) / 1e6) + " MB\n")
 
 exit()
 
