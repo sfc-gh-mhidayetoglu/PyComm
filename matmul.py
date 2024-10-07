@@ -40,8 +40,8 @@ list_A = [torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=m
 B = torch.randn(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device)     # (n/TP, b/ DP)
 C = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device)     # (n/TP, b/DP)
 C_part = torch.empty(hidden_dim, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n, b/DP)
-# list of TP slices
-list_C_part = [C_partial.narrow(0, i, hidden_dim//TP) for i in range(0, hidden_dim, hidden_dim//TP)] # TP x (n/TP, b/DP)
+# TP sharding of C_part
+list_C_part = [C_partial.narrow(0, i * hidden_dim//TP, hidden_dim//TP) for i in range(0, hidden_dim, hidden_dim//TP)] # TP x (n/TP, b/DP)
 # Create group communicators
 group_TP = dist.new_group(ranks=[i for i in range(world_size) if i // TP == my_rank // TP])
 local_rank = my_rank % TP
