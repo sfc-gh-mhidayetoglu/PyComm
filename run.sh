@@ -1,1 +1,1 @@
-deepspeed matmul.py
+deepspeed --hostfile hostfile.txt matmul.py
