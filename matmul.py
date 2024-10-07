@@ -12,10 +12,10 @@ root_rank = 8
 # print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
 
 # model parameters
-hidden_dim = 16777216
+hidden_dim = 2048
 batch_size = 512
 input_size = 5120
-num_layers = 100
+num_layers = 118
 
 # parallelization parameters
 TP = 8
@@ -49,6 +49,8 @@ if my_rank == root_rank:
     print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
     print("C_part " + str(C_part.size()) + " size " + str(C_part.element_size() * C_part.nelement() / 1e6) + " MB\n")
     print("list_C_part " + str(len(list_C_part)) + " size " + str(sum([C_partial.element_size() * C_partial.nelement() for C_partial in list_C_part]) / 1e6) + " MB\n")
+
+exit()
 
 # Create group communicators
 group_TP = dist.new_group(ranks=[i for i in range(world_size) if i // TP == my_rank // TP])
