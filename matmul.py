@@ -31,6 +31,9 @@ TP = 8
 DP = 2
 KP = 16
 
+# measurement parameters
+num_warmup = 10
+
 # report parameters
 if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
@@ -65,6 +68,14 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB\n")
+    # warmup iterations
+    for layer in range(num_warmup):
+        # partial multiplication
+        C_buff = torch.matmul(list_A[layer], B)
+        # Reduce partial results into total results in each TP group
+        dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
+        # double buffering
+        C, B = B, C
     if KP == None:
         time_comm = []
         time_matmul = []
@@ -146,6 +157,14 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
         print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB\n")
+    # iterate over layers
+    for layer in range(num_warmup):
+        # gather B
+        dist.all_gather_into_tensor(B_buff, B, group=group_TP)
+        # partial multiplication
+        C = torch.matmul(list_A[layer], B_buff)
+        # double buffering
+        C, B = B, C
     if KP == None:
         time_comm = []
         time_matmul = []
@@ -213,7 +232,5 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             print("row_wise per-iter perf %.2f event %.2f us\n" % (time_perf/num_layers*1e6, time_event/num_layers*1e3))
 
 # measure row-wise partitioning
-matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, KP)
-matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, KP)
