@@ -3,10 +3,6 @@ import torch.distributed as dist
 import time
 from enum import Enum
 
-class part_1D(Enum):
-    rowwise = 1
-    columnwise = 2
-
 def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2):
 
     # allocate memory
@@ -71,9 +67,14 @@ def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, T
         C, B = B, C
 
         # find time
-        time_comm = event_comm_start.elapsed_time(event_comm_end) # in microseconds
-        time_matmul = event_matmul_start.elapsed_time(event_matmul_end) # in microseconds
-        time_total = time_end - time_start # in seconds
+        time_comm = [event_comm_start.elapsed_time(event_comm_end)]
+        time_matmul = [event_matmul_start.elapsed_time(event_matmul_end)]
+        time_total = [time_end - time_start]
+    
+    for layer in range(num_layers):
+        time_matmul = time_matmul[layer] # in microseconds
+        time_comm = time_comm[layer] # in microseconds 
+        time_total = time_total[layer] # in seconds
         time_max = torch.tensor(time_total, device=my_device) # in seconds
         dist.all_reduce(time_max, op=dist.ReduceOp.MAX)
         time_max = time_max.item()
