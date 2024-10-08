@@ -12,6 +12,8 @@ my_device = torch.cuda.current_device()
 root_rank = 8
 
 # Create cuda events
+event_start = torch.cuda.Event(enable_timing=True)
+event_end = torch.cuda.Event(enable_timing=True)
 event_matmul_start = torch.cuda.Event(enable_timing=True)
 event_matmul_end = torch.cuda.Event(enable_timing=True)
 event_comm_start = torch.cuda.Event(enable_timing=True)
@@ -27,6 +29,7 @@ num_layers = 118
 # parallelization parameters
 TP = 8
 DP = 2
+KP = 16
 
 # report parameters
 if my_rank == root_rank:
@@ -37,6 +40,7 @@ if my_rank == root_rank:
 
     print("TP: " + str(TP) + "\n")
     print("DP: " + str(DP) + "\n")
+    print("KP: " + str(KP) + "\n")
     if TP * DP != dist.get_world_size():
         print("TP * DP != world_size\n")
         exit()
@@ -48,7 +52,7 @@ ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 local_rank = my_rank % TP
 
-def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2):
+def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, KP = 16):
 
     # allocate memory
     A = torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) # root layer
@@ -65,61 +69,73 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB\n")
 
-    time_comm = []
-    time_matmul = []
-    time_total = []
+    if KP == None:
+        # iterate over layers
+        time_comm = []
+        time_matmul = []
+        time_total = []
+        for layer in range(num_layers):
+            # Synchronize
+            torch.cuda.synchronize()
+            dist.barrier()
+            time_start = time.perf_counter()
+            event_matmul_start.record()
+            # partial multiplication
+            C_buff = torch.matmul(A[layer], B)
+            # record events
+            event_matmul_end.record()
+            event_comm_start.record()
+            # Reduce partial results into total results in each TP group
+            dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
+            # Synchronize
+            event_comm_end.record()
+            torch.cuda.synchronize()
+            time_end = time.perf_counter()
+            dist.barrier()
+            # double buffering
+            C, B = B, C
+            # record time
+            time_comm.append(event_comm_start.elapsed_time(event_comm_end))
+            time_matmul.append(event_matmul_start.elapsed_time(event_matmul_end))
+            time_total.append(time_end - time_start)
 
-    # iterate over layers
-    for layer in range(num_layers):
-
-        # A is different for each layer
-        A = list_A[layer]
-
-        # CRITICAL PART STARTS ***************************************************
-        # Synchronize
+        # report time
+        for layer in range(num_layers):
+            matmul = time_matmul[layer] # in microseconds
+            comm = time_comm[layer] # in microseconds 
+            total = time_total[layer] # in seconds
+            max_ = torch.tensor(total, device=my_device) # in seconds
+            dist.all_reduce(max_, op=dist.ReduceOp.MAX)
+            max_ = max_.item()
+            if my_rank == root_rank:
+                print("layer %d" % (layer))
+                print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
+                print("total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
+    else:
+        # synchronize
         torch.cuda.synchronize()
         dist.barrier()
-        time_start = time.perf_counter()
-        event_matmul_start.record()
-
-        # partial multiplication
-        C_buff = torch.matmul(A, B)
-
-        # record events
-        event_matmul_end.record()
-        event_comm_start.record()
-
-        # Reduce partial results into total results in each TP group
-        dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
-
-        # Synchronize
-        event_comm_end.record()
+        time_perf = time.perf_counter()
+        event_start.record()
+        # iterate over layers
+        for layer in range(num_layers):
+            # partial multiplication
+            C_buff = torch.matmul(A[layer], B)
+            # Reduce partial results into total results in each TP group
+            dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
+            # double buffering
+            C, B = B, C
+        # synchronize
+        event_end.record()
         torch.cuda.synchronize()
-        time_end = time.perf_counter()
         dist.barrier()
-        # CRITICAL PART ENDS ***************************************************
-
-        # double buffering
-        C, B = B, C
-
-        # record time
-        time_comm.append(event_comm_start.elapsed_time(event_comm_end))
-        time_matmul.append(event_matmul_start.elapsed_time(event_matmul_end))
-        time_total.append(time_end - time_start)
-   
-    # report time
-    for layer in range(num_layers):
-        matmul = time_matmul[layer] # in microseconds
-        comm = time_comm[layer] # in microseconds 
-        total = time_total[layer] # in seconds
-        max_ = torch.tensor(total, device=my_device) # in seconds
-        dist.all_reduce(max_, op=dist.ReduceOp.MAX)
-        max_ = max_.item()
+        # report time
+        time_perf = time.perf_counter() - time_perf
+        time_event = event_start.elapsed_time(event_end)
         if my_rank == root_rank:
-            print("layer %d" % (layer))
-            print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
-            print("total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
+            print("total %.2f event %.2f us " % (time_perf * 1e6, time_event * 1e3))
 
+    
 def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2):
 
     # allocate memory
@@ -194,5 +210,6 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
 
 
 # measure row-wise partitioning
+matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, KP)
 matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
