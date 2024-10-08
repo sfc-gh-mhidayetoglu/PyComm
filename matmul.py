@@ -13,7 +13,6 @@ def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, T
         print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
         print("hidden dim: " + str(hidden_dim) + "\n")
         print("batch size: " + str(batch_size) + "\n")
-        print("input size: " + str(input_size) + "\n")
         print("num layers: " + str(num_layers) + "\n")
 
         print("TP: " + str(TP) + "\n")
@@ -60,7 +59,7 @@ def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, T
         # Synchronize
         torch.cuda.synchronize()
         dist.barrier()
-        time_total = time.perf_counter()
+        time_start = time.perf_counter()
         event_matmul_start.record()
 
         # partial multiplication
@@ -76,17 +75,18 @@ def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, T
         # Synchronize
         event_comm_end.record()
         torch.cuda.synchronize()
-        time_total = time.perf_counter() - time_total # in seconds
-        time_comm = event_comm_start.elapsed_time(event_comm_end) # in microseconds
-        time_matmul = event_matmul_start.elapsed_time(event_matmul_end) # in microseconds
+        time_end = time.perf_counter()
         dist.barrier()
         # CRITICAL PART ENDS ***************************************************
 
         # double buffering
         C, B = B, C
 
-        # find max time
-        time_max = torch.tensor(time_total, device=my_device)
+        # find time
+        time_total = time_end - time_start # in seconds
+        time_max = torch.tensor(time_total, device=my_device) # in seconds
+        time_comm = event_comm_start.elapsed_time(event_comm_end) # in microseconds
+        time_matmul = event_matmul_start.elapsed_time(event_matmul_end) # in microseconds
         dist.all_reduce(time_max, op=dist.ReduceOp.MAX)
         time_max = time_max.item()
         if my_rank == root_rank:
