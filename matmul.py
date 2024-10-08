@@ -73,10 +73,10 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         for layer in range(num_layers):
             C_buff = torch.matmul(list_A[layer], B)
             dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
-            torch.cuda.synchronize()
             C, B = B, C
         # synchronize
         event_end.record()
+        torch.cuda.synchronize()
         dist.barrier()
         time_perf = time.perf_counter() - time_perf
         time_event = event_start.elapsed_time(event_end)
@@ -151,10 +151,10 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         for layer in range(num_layers):
             dist.all_gather_into_tensor(B_buff, B, group=group_TP)
             C = torch.matmul(list_A[layer], B_buff)
-            torch.cuda.synchronize()
             C, B = B, C
         # synchronize
         event_end.record()
+        torch.cuda.synchronize()
         dist.barrier()
         time_perf = time.perf_counter() - time_perf
         time_event = event_start.elapsed_time(event_end)
@@ -206,9 +206,9 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
     return B
 
 # measure row-wise partitioning
-matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
+B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
-matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
+B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
