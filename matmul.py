@@ -51,6 +51,7 @@ event_comm_end = torch.cuda.Event(enable_timing=True)
 
 def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, mini_batch = None):
     # allocate memory
+    torch.cuda.empty_cache()
     A = torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) # root layer (n, n/TP)
     list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n, n/TP)
     B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
@@ -130,6 +131,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
 
 def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, mini_batch = None):
     # allocate memory
+    torch.cuda.empty_cache()
     A = torch.randn(hidden_dim//TP, hidden_dim, dtype=torch.bfloat16, device=my_device) # root layer (n/TP, n)
     list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n/TP, n)
     B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
