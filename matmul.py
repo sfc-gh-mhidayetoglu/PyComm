@@ -28,7 +28,6 @@ if my_rank == root_rank:
     print("batch size: " + str(batch_size))
     print("num layers: " + str(num_layers))
     print("mini_batch: " + str(mini_batch))
-    print("num_warmup: " + str(num_warmup))
 
     print("TP: " + str(TP))
     print("DP: " + str(DP))
@@ -207,9 +206,9 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
     return B
 
 # measure row-wise partitioning
-B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
+matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
-B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
+matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
