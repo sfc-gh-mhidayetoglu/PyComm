@@ -3,6 +3,14 @@ import torch.distributed as dist
 import time
 from enum import Enum
 
+# initialize
+dist.init_process_group(backend='nccl')
+my_rank = dist.get_rank()
+world_size = dist.get_world_size()
+torch.cuda.set_device(my_rank % torch.cuda.device_count())
+my_device = torch.cuda.current_device()
+root_rank = 8
+
 def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2):
 
     # allocate memory
@@ -34,6 +42,11 @@ def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, T
     event_comm_start = torch.cuda.Event(enable_timing=True)
     event_comm_end = torch.cuda.Event(enable_timing=True)
 
+    time_comm = []
+    time_matmul = []
+    time_total = []
+
+    # iterate over layers
     for layer in range(num_layers):
 
         # A is different for each layer
@@ -66,31 +79,24 @@ def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, T
         # double buffering
         C, B = B, C
 
-        # find time
-        time_comm = [event_comm_start.elapsed_time(event_comm_end)]
-        time_matmul = [event_matmul_start.elapsed_time(event_matmul_end)]
-        time_total = [time_end - time_start]
-    
+        # record time
+        time_comm.append(event_comm_start.elapsed_time(event_comm_end))
+        time_matmul.append(event_matmul_start.elapsed_time(event_matmul_end))
+        time_total.append(time_end - time_start)
+   
+    # report time
     for layer in range(num_layers):
-        time_matmul = time_matmul[layer] # in microseconds
-        time_comm = time_comm[layer] # in microseconds 
-        time_total = time_total[layer] # in seconds
-        time_max = torch.tensor(time_total, device=my_device) # in seconds
-        dist.all_reduce(time_max, op=dist.ReduceOp.MAX)
-        time_max = time_max.item()
+        matmul = time_matmul[layer] # in microseconds
+        comm = time_comm[layer] # in microseconds 
+        total = time_total[layer] # in seconds
+        max_ = torch.tensor(total, device=my_device) # in seconds
+        dist.all_reduce(max_, op=dist.ReduceOp.MAX)
+        max_ = max_.item()
         if my_rank == root_rank:
             print("layer %d" % (layer))
-            print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (time_matmul*1e3, time_comm*1e3, (time_matmul+time_comm)*1e3, time_total*1e6-(time_matmul+time_comm)*1e3))
-            print("total %.2f max %.2f us " % (time_total * 1e6, time_max * 1e6))
+            print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
+            print("total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
 
-
-# initialize
-dist.init_process_group(backend='nccl')
-my_rank = dist.get_rank()
-world_size = dist.get_world_size()
-torch.cuda.set_device(my_rank % torch.cuda.device_count())
-my_device = torch.cuda.current_device()
-root_rank = 8
 
 # print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
 
