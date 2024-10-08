@@ -21,9 +21,6 @@ mini_batch = 1
 TP = 8
 DP = 2
 
-# masurement parameters
-num_warmup = num_layers
-
 # report parameters
 if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
