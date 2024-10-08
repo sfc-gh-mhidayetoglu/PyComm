@@ -8,18 +8,6 @@ class part_1D(Enum):
     columnwise = 2
 
 def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2):
-    # report parameters
-    if my_rank == root_rank:
-        print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
-        print("hidden dim: " + str(hidden_dim) + "\n")
-        print("batch size: " + str(batch_size) + "\n")
-        print("num layers: " + str(num_layers) + "\n")
-
-        print("TP: " + str(TP) + "\n")
-        print("DP: " + str(DP) + "\n")
-        if TP * DP != dist.get_world_size():
-            print("TP * DP != world_size\n")
-            exit()
 
     # allocate memory
     A = torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) # root layer
@@ -83,10 +71,10 @@ def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, T
         C, B = B, C
 
         # find time
-        time_total = time_end - time_start # in seconds
-        time_max = torch.tensor(time_total, device=my_device) # in seconds
         time_comm = event_comm_start.elapsed_time(event_comm_end) # in microseconds
         time_matmul = event_matmul_start.elapsed_time(event_matmul_end) # in microseconds
+        time_total = time_end - time_start # in seconds
+        time_max = torch.tensor(time_total, device=my_device) # in seconds
         dist.all_reduce(time_max, op=dist.ReduceOp.MAX)
         time_max = time_max.item()
         if my_rank == root_rank:
@@ -95,13 +83,13 @@ def matmul_1D_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, T
             print("total %.2f max %.2f us " % (time_total * 1e6, time_max * 1e6))
 
 
- # initialize
- dist.init_process_group(backend='nccl')
- my_rank = dist.get_rank()
- world_size = dist.get_world_size()
- torch.cuda.set_device(my_rank % torch.cuda.device_count())
- my_device = torch.cuda.current_device()
- root_rank = 8
+# initialize
+dist.init_process_group(backend='nccl')
+my_rank = dist.get_rank()
+world_size = dist.get_world_size()
+torch.cuda.set_device(my_rank % torch.cuda.device_count())
+my_device = torch.cuda.current_device()
+root_rank = 8
 
 # print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
 
@@ -114,4 +102,18 @@ num_layers = 118
 TP = 8
 DP = 2
 
+# report parameters
+if my_rank == root_rank:
+    print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
+    print("hidden dim: " + str(hidden_dim) + "\n")
+    print("batch size: " + str(batch_size) + "\n")
+    print("num layers: " + str(num_layers) + "\n")
+
+    print("TP: " + str(TP) + "\n")
+    print("DP: " + str(DP) + "\n")
+    if TP * DP != dist.get_world_size():
+        print("TP * DP != world_size\n")
+        exit()
+
+# measure row-wise partitioning
 matmul_1D_colwise(hidden_dim, batch_size, num_layers, TP, DP)
