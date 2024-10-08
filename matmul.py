@@ -62,11 +62,11 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
     C_buff = torch.empty(hidden_dim, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n, b/DP)
     # report memory usage
     if my_rank == root_rank:
-        print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB\n")
-        print("list_A " + str(len(list_A)) + " size " + str(sum([A.element_size() * A.nelement() for A in list_A]) / 1e6) + " MB\n")
-        print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
-        print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
-        print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB\n")
+        print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB")
+        print("list_A " + str(len(list_A)) + " size " + str(sum([A.element_size() * A.nelement() for A in list_A]) / 1e6) + " MB")
+        print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
+        print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
+        print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
     # warmup iterations
     for iter in range(num_warmup):
         # partial multiplication
@@ -88,7 +88,6 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         C, B = B, C
     # synchronize
     event_end.record()
-    torch.cuda.synchronize()
     dist.barrier()
     time_perf = time.perf_counter() - time_perf
     time_event = event_start.elapsed_time(event_end)
@@ -107,11 +106,11 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
     B_buff = torch.empty(hidden_dim, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n, b/DP)
     # report memory usage
     if my_rank == root_rank:
-        print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB\n")
-        print("list_A " + str(len(list_A)) + " size " + str(sum([A.element_size() * A.nelement() for A in list_A]) / 1e6) + " MB\n")
-        print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
-        print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
-        print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB\n")
+        print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB")
+        print("list_A " + str(len(list_A)) + " size " + str(sum([A.element_size() * A.nelement() for A in list_A]) / 1e6) + " MB")
+        print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
+        print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
+        print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB")
     # warmup iterations
     for iter in range(num_warmup):
         # gather B
@@ -133,7 +132,6 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         C, B = B, C
     # synchronize
     event_end.record()
-    torch.cuda.synchronize()
     dist.barrier()
     time_perf = time.perf_counter() - time_perf
     time_event = event_start.elapsed_time(event_end)
