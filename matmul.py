@@ -11,6 +11,43 @@ torch.cuda.set_device(my_rank % torch.cuda.device_count())
 my_device = torch.cuda.current_device()
 root_rank = 8
 
+# Create cuda events
+event_matmul_start = torch.cuda.Event(enable_timing=True)
+event_matmul_end = torch.cuda.Event(enable_timing=True)
+event_comm_start = torch.cuda.Event(enable_timing=True)
+event_comm_end = torch.cuda.Event(enable_timing=True)
+
+# print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
+
+# model parameters
+hidden_dim = 16384
+batch_size = 1024
+num_layers = 118
+
+# parallelization parameters
+TP = 8
+DP = 2
+
+# report parameters
+if my_rank == root_rank:
+    print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
+    print("hidden dim: " + str(hidden_dim) + "\n")
+    print("batch size: " + str(batch_size) + "\n")
+    print("num layers: " + str(num_layers) + "\n")
+
+    print("TP: " + str(TP) + "\n")
+    print("DP: " + str(DP) + "\n")
+    if TP * DP != dist.get_world_size():
+        print("TP * DP != world_size\n")
+        exit()
+
+
+# Create group communicators
+ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
+# print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
+group_TP = dist.new_group(ranks, use_local_synchronization=True)
+local_rank = my_rank % TP
+
 def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2):
 
     # allocate memory
@@ -27,17 +64,6 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB\n")
-
-    # Create group communicators
-    ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
-    # print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
-    group_TP = dist.new_group(ranks, use_local_synchronization=True)
-    local_rank = my_rank % TP
-    # Create cuda events
-    event_matmul_start = torch.cuda.Event(enable_timing=True)
-    event_matmul_end = torch.cuda.Event(enable_timing=True)
-    event_comm_start = torch.cuda.Event(enable_timing=True)
-    event_comm_end = torch.cuda.Event(enable_timing=True)
 
     time_comm = []
     time_matmul = []
@@ -111,17 +137,6 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
         print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB\n")
 
-    # Create group communicators
-    ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
-    # print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
-    group_TP = dist.new_group(ranks, use_local_synchronization=True)
-    local_rank = my_rank % TP
-    # Create cuda events
-    event_matmul_start = torch.cuda.Event(enable_timing=True)
-    event_matmul_end = torch.cuda.Event(enable_timing=True)
-    event_comm_start = torch.cuda.Event(enable_timing=True)
-    event_comm_end = torch.cuda.Event(enable_timing=True)
-
     time_comm = []
     time_matmul = []
     time_total = []
@@ -177,30 +192,6 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
             print("total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
 
-
-# print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
-
-# model parameters
-hidden_dim = 16384
-batch_size = 1024
-num_layers = 118
-
-# parallelization parameters
-TP = 8
-DP = 2
-
-# report parameters
-if my_rank == root_rank:
-    print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
-    print("hidden dim: " + str(hidden_dim) + "\n")
-    print("batch size: " + str(batch_size) + "\n")
-    print("num layers: " + str(num_layers) + "\n")
-
-    print("TP: " + str(TP) + "\n")
-    print("DP: " + str(DP) + "\n")
-    if TP * DP != dist.get_world_size():
-        print("TP * DP != world_size\n")
-        exit()
 
 # measure row-wise partitioning
 matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
