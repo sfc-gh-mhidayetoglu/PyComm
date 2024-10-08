@@ -98,11 +98,13 @@ for layer in range(num_layers):
     # double buffering
     C, B = B, C
 
+    # find max time
     time_max = torch.tensor(time_total, device=my_device)
-    dist.all_reduce(time_max, op=dist.ReduceOp.MAX).item()
+    dist.all_reduce(time_max, op=dist.ReduceOp.MAX)
+    time_max = time_max.item()
     if my_rank == root_rank:
         print("layer %d" % (layer))
-        print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2fus" % (time_matmul*1e3, time_comm*1e3, (time_matmul+time_comm)*1e3, time_total*1e6-(time_matmul+time_comm)*1e3))
+        print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (time_matmul*1e3, time_comm*1e3, (time_matmul+time_comm)*1e3, time_total*1e6-(time_matmul+time_comm)*1e3))
         print("total %.2f max %.2f us " % (time_total * 1e6, time_max * 1e6))
 
 exit()  
