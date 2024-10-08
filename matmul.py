@@ -21,6 +21,9 @@ mini_batch = 1
 TP = 8
 DP = 2
 
+# masurement parameters
+num_warmup = 20
+
 # report parameters
 if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
@@ -28,6 +31,7 @@ if my_rank == root_rank:
     print("batch size: " + str(batch_size) + "\n")
     print("num layers: " + str(num_layers) + "\n")
     print("mini_batch: " + str(mini_batch) + "\n")
+    print("num_warmup: " + str(num_warmup) + "\n")
 
     print("TP: " + str(TP) + "\n")
     print("DP: " + str(DP) + "\n")
@@ -63,6 +67,14 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB\n")
+    # warmup iterations
+    for iter in range(num_warmup):
+        # partial multiplication
+        C_buff = torch.matmul(list_A[iter], B)
+        # Reduce partial results into total results in each TP group
+        dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
+        # double buffering
+        C, B = B, C
     # synchronize
     torch.cuda.synchronize()
     dist.barrier()
@@ -102,6 +114,14 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
         print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB\n")
+    # warmup iterations
+    for iter in range(num_warmup):
+        # gather B
+        dist.all_gather_into_tensor(B_buff, B, group=group_TP)
+        # partial multiplication
+        C = torch.matmul(list_A[iter], B_buff)
+        # double buffering
+        C, B = B, C
     # synchronize
     torch.cuda.synchronize()
     dist.barrier()
