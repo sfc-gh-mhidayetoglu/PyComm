@@ -63,6 +63,8 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
+        print("Total CUDA memory allocated: {:.2f} MB".format(torch.cuda.memory_allocated(my_device) / 1e6))
+        print("Total CUDA memory cached: {:.2f} MB".format(torch.cuda.memory_reserved(my_device) / 1e6))
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
@@ -71,7 +73,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         event_start.record()
         # iterate over layers
         for layer in range(num_layers):
-            C_buff = torch.matmul(list_A[layer], B)
+            torch.matmul(list_A[layer], B, C_buff)
             dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
             C, B = B, C
         # synchronize
@@ -96,7 +98,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             time_start = time.perf_counter()
             event_matmul_start.record()
             # partial multiplication
-            C_buff = torch.matmul(list_A[layer], B)
+            torch.matmul(list_A[layer], B, C_buff)
             # record events
             event_matmul_end.record()
             event_comm_start.record()
@@ -141,6 +143,8 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
         print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB")
+        print("Total CUDA memory allocated: {:.2f} MB".format(torch.cuda.memory_allocated(my_device) / 1e6))
+        print("Total CUDA memory cached: {:.2f} MB".format(torch.cuda.memory_reserved(my_device) / 1e6))
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
@@ -150,7 +154,7 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         # iterate over layers
         for layer in range(num_layers):
             dist.all_gather_into_tensor(B_buff, B, group=group_TP)
-            C = torch.matmul(list_A[layer], B_buff)
+            torch.matmul(list_A[layer], B_buff, C)
             C, B = B, C
         # synchronize
         event_end.record()
@@ -179,7 +183,7 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             event_comm_end.record()
             event_matmul_start.record()
             # partial multiplication
-            C = torch.matmul(list_A[layer], B_buff)
+            torch.matmul(list_A[layer], B_buff, C)
             # Synchronize
             event_matmul_end.record()
             torch.cuda.synchronize()
