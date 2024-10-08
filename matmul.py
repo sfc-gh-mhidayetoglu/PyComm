@@ -51,7 +51,7 @@ ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 local_rank = my_rank % TP
 
-def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, KP = 16):
+def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, KP = None):
     # allocate memory
     A = torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) # root layer
     list_A = [torch.randn_like(A) for _ in range(num_layers)] # l x (n, n/TP)
@@ -104,8 +104,8 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             max_ = max_.item()
             if my_rank == root_rank:
                 print("layer %d" % (layer))
-                print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
-                print("total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
+                print("column-wise mmatmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
+                print("column-wise total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
     else:
         # synchronize
         torch.cuda.synchronize()
@@ -124,14 +124,15 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         event_end.record()
         torch.cuda.synchronize()
         dist.barrier()
-        # report time
         time_perf = time.perf_counter() - time_perf
         time_event = event_start.elapsed_time(event_end)
+        # report time
         if my_rank == root_rank:
-            print("total %.2f event %.2f s/n" % (time_perf, time_event / 1e3))
+            print("column-wise total %.2f event %.2f ms" % (time_perf*1e3, time_event))
+            print("column-wise per-iteration perf %.2f event %.2f us\n" % (time_perf/num_layers*1e6, time_event/num_layers*1e3))
 
     
-def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, KP = 16):
+def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, KP = None):
     # allocate memory
     A = torch.randn(hidden_dim//TP, hidden_dim, dtype=torch.bfloat16, device=my_device) # root layer (n/TP, n)
     list_A = [torch.randn_like(A) for _ in range(num_layers)] # l x (n/TP, n)
@@ -184,8 +185,8 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             max_ = max_.item()
             if my_rank == root_rank:
                 print("layer %d" % (layer))
-                print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
-                print("total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
+                print("row-wise matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
+                print("row-wise total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
     else:
         # synchronize
         torch.cuda.synchronize()
@@ -204,14 +205,15 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         event_end.record()
         torch.cuda.synchronize()
         dist.barrier()
-        # report time
         time_perf = time.perf_counter() - time_perf
         time_event = event_start.elapsed_time(event_end)
+        # report time
         if my_rank == root_rank:
-            print("total %.2f event %.2f s/n" % (time_perf, time_event / 1e3))
+            print("row_wise total %.2f event %.2f ms" % (time_perf*1e3, time_event))
+            print("row_wise per-iter perf %.2f event %.2f us\n" % (time_perf/num_layers*1e6, time_event/num_layers*1e3))
 
 # measure row-wise partitioning
+matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, KP)
+matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, KP)
-# matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
-# matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
