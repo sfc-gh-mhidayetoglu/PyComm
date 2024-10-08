@@ -22,19 +22,19 @@ TP = 8
 DP = 2
 
 # masurement parameters
-num_warmup = 20
+num_warmup = num_layers
 
 # report parameters
 if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
-    print("hidden dim: " + str(hidden_dim) + "\n")
-    print("batch size: " + str(batch_size) + "\n")
-    print("num layers: " + str(num_layers) + "\n")
-    print("mini_batch: " + str(mini_batch) + "\n")
-    print("num_warmup: " + str(num_warmup) + "\n")
+    print("hidden dim: " + str(hidden_dim)")
+    print("batch size: " + str(batch_size)")
+    print("num layers: " + str(num_layers)")
+    print("mini_batch: " + str(mini_batch)")
+    print("num_warmup: " + str(num_warmup)")
 
-    print("TP: " + str(TP) + "\n")
-    print("DP: " + str(DP) + "\n")
+    print("TP: " + str(TP)")
+    print("DP: " + str(DP)")
     if TP * DP != dist.get_world_size():
         print("TP * DP != world_size\n")
         exit()
