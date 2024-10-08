@@ -52,8 +52,6 @@ if my_rank == root_rank:
     print("C_part " + str(C_part.size()) + " size " + str(C_part.element_size() * C_part.nelement() / 1e6) + " MB\n")
     print("list_C_part " + str(len(list_C_part)) + " size " + str(sum([C_part.element_size() * C_part.nelement() for C_part in list_C_part]) / 1e6) + " MB\n")
 
-exit()
-
 # Create group communicators
 group_TP = dist.new_group(ranks=[i for i in range(world_size) if i // TP == my_rank // TP])
 local_rank = my_rank % TP
@@ -62,6 +60,8 @@ event_matmul_start = torch.cuda.Event(enable_timing=True)
 event_matmul_end = torch.cuda.Event(enable_timing=True)
 event_comm_start = torch.cuda.Event(enable_timing=True)
 event_comm_end = torch.cuda.Event(enable_timing=True)
+
+exit()  
 
 for layer in range(num_layers):
 
