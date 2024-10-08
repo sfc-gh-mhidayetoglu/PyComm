@@ -212,6 +212,15 @@ B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batc
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
-if my_rank == root_rank:
-    print(B_colwise)
-    print(B_rowwise)
+if B_colwise.eq(torch.ones_like(B_colwise)).all():
+    if my_rank == root_rank:
+        print("B_colwise correct")
+else:
+    if my_rank == root_rank:
+        print("B_colwise incorrect")
+if B_rowwise.eq(torch.ones_like(B_rowwise)).all():
+    if my_rank == root_rank:
+        print("B_rowwise correct")
+else:
+    if my_rank == root_rank:
+        print("B_rowwise incorrect")
