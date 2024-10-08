@@ -1,5 +1,6 @@
 import torch
 import torch.distributed as dist
+import time
 
 # initialize
 dist.init_process_group(backend='nccl')
@@ -53,7 +54,9 @@ if my_rank == root_rank:
     print("list_C_part " + str(len(list_C_part)) + " size " + str(sum([C_part.element_size() * C_part.nelement() for C_part in list_C_part]) / 1e6) + " MB\n")
 
 # Create group communicators
-group_TP = dist.new_group(ranks=[i for i in range(world_size) if i // TP == my_rank // TP])
+ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
+# print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
+group_TP = dist.new_group(ranks, use_local_synchronization=True)
 local_rank = my_rank % TP
 # Create cuda events
 event_matmul_start = torch.cuda.Event(enable_timing=True)
@@ -61,18 +64,17 @@ event_matmul_end = torch.cuda.Event(enable_timing=True)
 event_comm_start = torch.cuda.Event(enable_timing=True)
 event_comm_end = torch.cuda.Event(enable_timing=True)
 
-exit()  
-
 for layer in range(num_layers):
 
     # A is different for each layer
     A = list_A[layer]
 
+    # CRITICAL PART STARTS ***************************************************
     # Synchronize
     torch.cuda.synchronize()
     dist.barrier()
-    time_start = time.perf_counter()
-    event_comm_start.record()
+    time_total = time.perf_counter()
+    event_matmul_start.record()
 
     # partial multiplication
     C_part = torch.matmul(A, B)
@@ -87,20 +89,23 @@ for layer in range(num_layers):
     # Synchronize
     event_comm_end.record()
     torch.cuda.synchronize()
-    time_end = time.perf_counter()
+    time_total = time.perf_counter() - time_total # in seconds
+    time_comm = event_comm_start.elapsed_time(event_comm_end) # in microseconds
+    time_matmul = event_matmul_start.elapsed_time(event_matmul_end) # in microseconds
     dist.barrier()
+    # CRITICAL PART ENDS ***************************************************
 
     # double buffering
     C, B = B, C
 
-    # find time
-    time_matmul = event_matmul_start.elapsed_time(event_matmul_end)
-    time_comm = event_comm_start.elapsed_time(event_comm_end)
-    time_total = time_end - time_start
-    time_total_max = dist.all_reduce(torch.tensor(time_total, device=my_device), op=dist.ReduceOp.MAX).item()
+    time_max = torch.tensor(time_total, device=my_device)
+    dist.all_reduce(time_max, op=dist.ReduceOp.MAX).item()
     if my_rank == root_rank:
-        print("layer " + str(layer) + " matmul " + str(time_matmul) + " comm " + str(time_comm) + " total " + str(time_total) + " max " + str(time_total_max) + "\n")
+        print("layer %d" % (layer))
+        print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2fus" % (time_matmul*1e3, time_comm*1e3, (time_matmul+time_comm)*1e3, time_total*1e6-(time_matmul+time_comm)*1e3))
+        print("total %.2f max %.2f us " % (time_total * 1e6, time_max * 1e6))
 
+exit()  
 if my_rank == root_rank:
     print("initialize input\n")
     _input = torch.randn((hidden_dim, input_size), dtype=torch.bfloat16, device=my_device)
