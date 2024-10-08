@@ -84,7 +84,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
     for layer in range(num_layers):
         C_buff = torch.matmul(list_A[layer], B)
         dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
-        cuda.deviceSynchronize()
+        torch.cuda.deviceSynchronize()
         C, B = B, C
     # synchronize
     event_end.record()
@@ -129,7 +129,7 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
     for layer in range(num_layers):
         dist.all_gather_into_tensor(B_buff, B, group=group_TP)
         C = torch.matmul(list_A[layer], B_buff)
-        cuda.device_synchronize()
+        torch.cuda.device_synchronize()
         C, B = B, C
     # synchronize
     event_end.record()
