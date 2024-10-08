@@ -63,9 +63,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
-        print("Current CUDA memory allocated: {:.2f} MB".format(torch.cuda.memory_allocated() / 1e6))
-        print("Current CUDA memory cached: {:.2f} MB".format(torch.cuda.memory_reserved() / 1e6))
-        print(torch.cuda.memory_summary())
+        print("Total memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
@@ -144,9 +142,7 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
         print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB")
-        print("Current CUDA memory allocated: {:.2f} MB".format(torch.cuda.memory_allocated() / 1e6))
-        print("Current CUDA memory cached: {:.2f} MB".format(torch.cuda.memory_reserved() / 1e6))
-        print(torch.cuda.memory_summary())
+        print("Total memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
