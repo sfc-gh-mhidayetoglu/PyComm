@@ -126,9 +126,9 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             dist.all_reduce(max_, op=dist.ReduceOp.MAX)
             max_ = max_.item()
             if my_rank == root_rank:
-                print("layer %d" % (layer))
-                print("column-wise mmatmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
-                print("column-wise total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
+                print("column-wise layer %d" % (layer), end=" ")
+                print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3), end=" ")   
+                print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
 def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, mini_batch = None):
@@ -204,14 +204,15 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             dist.all_reduce(max_, op=dist.ReduceOp.MAX)
             max_ = max_.item()
             if my_rank == root_rank:
-                print("layer %d" % (layer))
-                print("row-wise matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3))
-                print("row-wise total %.2f max %.2f us " % (total * 1e6, max_ * 1e6))
+                print("row-wise layer %d" % (layer), end=" ")
+                print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3), end=" ")
+                print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
 # measure row-wise partitioning
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 
-print(B_colwise)
-print(B_rowwise)
+if my_rank == root_rank:
+    print(B_colwise)
+    print(B_rowwise)
