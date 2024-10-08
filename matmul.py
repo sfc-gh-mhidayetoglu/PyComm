@@ -12,8 +12,8 @@ root_rank = 8
 # print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
 
 # model parameters
-hidden_dim = 2048
-batch_size = 512
+hidden_dim = 16384
+batch_size = 1024
 input_size = 5120
 num_layers = 118
 
@@ -36,14 +36,16 @@ if my_rank == root_rank:
         exit()
 
 # allocate memory
-list_A = [torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) for _ in range(num_layers)] # l x (n, n/TP)
+A = torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) # root layer
+list_A = [torch.randn_like(A) for _ in range(num_layers)] # l x (n, n/TP)
 B = torch.randn(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device)     # (n/TP, b/ DP)
 C = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device)     # (n/TP, b/DP)
 C_part = torch.empty(hidden_dim, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n, b/DP)
 # TP sharding of C_part
-list_C_part = [C_partial.narrow(0, i * hidden_dim//TP, hidden_dim//TP) for i in range(0, hidden_dim, hidden_dim//TP)] # TP x (n/TP, b/DP)
+list_C_part = [C_part.narrow(0, i, hidden_dim//TP) for i in range(0, hidden_dim, hidden_dim//TP)] # TP x (n/TP, b/DP)
 
 if my_rank == root_rank:
+    print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB\n")
     print("list_A " + str(len(list_A)) + " size " + str(sum([A.element_size() * A.nelement() for A in list_A]) / 1e6) + " MB\n")
     print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB\n")
     print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB\n")
