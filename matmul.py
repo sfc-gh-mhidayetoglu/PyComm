@@ -73,7 +73,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         event_start.record()
         # iterate over layers
         for layer in range(num_layers):
-            torch.matmul(list_A[layer], B, C_buff)
+            torch.matmul(list_A[layer], B, out=C_buff)
             dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
             C, B = B, C
         # synchronize
@@ -98,7 +98,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             time_start = time.perf_counter()
             event_matmul_start.record()
             # partial multiplication
-            torch.matmul(list_A[layer], B, C_buff)
+            torch.matmul(list_A[layer], B, out=C_buff)
             # record events
             event_matmul_end.record()
             event_comm_start.record()
@@ -154,7 +154,7 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         # iterate over layers
         for layer in range(num_layers):
             dist.all_gather_into_tensor(B_buff, B, group=group_TP)
-            torch.matmul(list_A[layer], B_buff, C)
+            torch.matmul(list_A[layer], B_buff, out=C)
             C, B = B, C
         # synchronize
         event_end.record()
@@ -183,7 +183,7 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             event_comm_end.record()
             event_matmul_start.record()
             # partial multiplication
-            torch.matmul(list_A[layer], B_buff, C)
+            torch.matmul(list_A[layer], B_buff, out=C)
             # Synchronize
             event_matmul_end.record()
             torch.cuda.synchronize()
