@@ -326,8 +326,8 @@ B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
-B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
-B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP_row, TP_col, DP)
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP_row, TP_col, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
     if my_rank == root_rank:
