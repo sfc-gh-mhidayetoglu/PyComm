@@ -40,6 +40,7 @@ ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
 # print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 local_rank = my_rank % TP
+group_size = TP
 
 # Create cuda events
 event_start = torch.cuda.Event(enable_timing=True)
@@ -240,6 +241,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, D
         event_start.record()
         # iterate over layers
         for layer in range(num_layers):
+            # for i in range(TP_sqrt):
+            #     dist.recv(B_buff[i*TP_sqrt:(i+1)*TP_sqrt], src=i, group=group_TP)
             # dist.all_gather_into_tensor(B_buff, B, group=group_TP)
             torch.matmul(list_A[layer], B_buff, out=C_buff)
             # dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
@@ -304,7 +307,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, D
                 Bytes_C = C_buff.element_size() * C_buff.nelement()
                 print("comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm+matmul+comm2 = %.2f overhead %.2f us" % (comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, (comm+matmul+comm2)*1e3, total*1e6-(comm+matmul+comm2)*1e3), end=" ")
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
-    return B
+    return C
 
 # measure row-wise partitioning
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
