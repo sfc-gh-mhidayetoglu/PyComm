@@ -10,6 +10,7 @@ world_size = dist.get_world_size()
 torch.cuda.set_device(my_rank % torch.cuda.device_count())
 my_device = torch.cuda.current_device()
 root_rank = 7
+comm_cpu = dist.new_group(backend="gloo", use_local_synchronization=True)
 
 # model parameters
 hidden_dim = 16384
@@ -18,12 +19,8 @@ num_layers = 126
 mini_batch = 1
 
 # parallelization parameters
-TP_row = 4
-TP_col = 4
+TP = 16
 DP = 1
-
-# machine parameters
-TP = TP_row * TP_col
 
 # report parameters
 if my_rank == root_rank:
@@ -33,8 +30,6 @@ if my_rank == root_rank:
     print("num layers: " + str(num_layers))
     print("mini_batch: " + str(mini_batch))
 
-    print("TP_row: " + str(TP_row))
-    print("TP_col: " + str(TP_col))
     print("TP: " + str(TP))
     print("DP: " + str(DP))
     if TP * DP != dist.get_world_size():
@@ -46,13 +41,6 @@ ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
 # print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 local_rank = my_rank % TP
-
-# Map local_rank to a 2D matrix
-rank_2D = (local_rank // TP_col, local_rank % TP_col)
-if my_rank == root_rank:
-    print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
-if my_rank == root_rank:
-    print("my_rank " + str(my_rank) + " rank_row " + str(rank_2D[0]) + " rank_col " + str(rank_2D[1]) + "\n")
 
 # Create cuda events
 event_start = torch.cuda.Event(enable_timing=True)
@@ -229,13 +217,14 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
 
 def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP_row = 1, TP_col=8, DP = 2, mini_batch = None):
     # allocate memory
-    TP = TP_row * TP_col
-    A = torch.randn(hidden_dim//TP_col, hidden_dim//TP_row, dtype=torch.bfloat16, device=my_device) # root layer (n/sqrt(TP), n/sqrt(TP))
+    TP_sqrt = math.isqrt(TP)
+    A = torch.randn(hidden_dim//TP_sqrt, hidden_dim//TP_sqrt, dtype=torch.bfloat16, device=my_device) # root layer (n/sqrt(TP), n/sqrt(TP))
     list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n/sqrt(TP), n/sqrt(TP))
     B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
     C = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
-    B_buff = torch.empty(hidden_dim//TP_col, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
-    C_buff = torch.empty(hidden_dim//TP_row, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
+    B_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
+    C_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
+
     # report memory usage
     if my_rank == root_rank:
         print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB")
@@ -245,6 +234,16 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP_row = 
         print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
         print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
+
+    # Map local_rank to a 2D domain
+    rank_2D = (local_rank // math.isqrt(TP), local_rank % TP_col)
+    sendid_B = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
+
+    if my_rank == root_rank:
+        print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
+        print("my_rank " + str(my_rank) + " rank_row " + str(rank_2D[0]) + " rank_col " + str(rank_2D[1]) + "\n")
+        print(sendid_B)
+
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
@@ -253,8 +252,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP_row = 
         event_start.record()
         # iterate over layers
         for layer in range(num_layers):
+            # send_handle = [dist.Work] * TP_sqrt
             # for i in range(TP_sqrt):
-            #     dist.recv(B_buff[i*TP_sqrt:(i+1)*TP_sqrt], src=i, group=group_TP)
+            #     handle_list[i] = dist.irecv(B_buff[i*TP_sqrt:(i+1)*TP_sqrt], src=B_col_panel[i], group=group_TP)
             # dist.all_gather_into_tensor(B_buff, B, group=group_TP)
             torch.matmul(list_A[layer], B_buff, out=C_buff)
             # dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
