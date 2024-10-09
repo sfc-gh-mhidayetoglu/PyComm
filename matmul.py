@@ -270,7 +270,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, D
             event_comm_end.record()
             # partial multiplication
             event_matmul_start.record()
-            torch.matmul(list_A[layer], B_buff, out=C)
+            torch.matmul(list_A[layer], B_buff, out=C_buff)
             event_matmul_end.record()
             # scatter C_buff
             event_comm2_start.record()
