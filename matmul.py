@@ -64,7 +64,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
-        print("Total memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
+        print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
@@ -126,7 +126,7 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             if my_rank == root_rank:
                 print("column-wise layer %d" % (layer), end=" ")
                 FLOPs = 2 * A.size(0) * A.size(1) * B.size(1)
-                print("matmul %.2f comm %.2f (%.2f GFLOPS) matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, FLOPs / (matmul / 1e3) / 1e9, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3), end=" ")   
+                print("matmul %.2f (%.2f GFLOPS) comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, FLOPs / (matmul / 1e3) / 1e9, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3), end=" ")   
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
@@ -144,7 +144,7 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
         print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
         print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB")
-        print("Total memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
+        print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
