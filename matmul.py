@@ -234,14 +234,21 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
         print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
 
+    map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
+    for i in range(TP):
+        map_2D[i // TP_sqrt][i % TP_sqrt] = i
+    
+    if my_rank == root_rank:
+        print(map_2D)
+    return
     # Map local_rank to a 2D domain
     rank_2D = (local_rank // TP_sqrt, local_rank % TP_sqrt)
-    sendid_B = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
+    recvid_B = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
 
     if my_rank == root_rank:
         print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
         print("my_rank " + str(my_rank) + " rank_row " + str(rank_2D[0]) + " rank_col " + str(rank_2D[1]) + "\n")
-        print(sendid_B)
+        print(recvid_B)
 
     if mini_batch is not None:
         # synchronize
