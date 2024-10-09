@@ -126,7 +126,8 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             if my_rank == root_rank:
                 print("column-wise layer %d" % (layer), end=" ")
                 FLOPs = 2 * A.size(0) * A.size(1) * B.size(1)
-                print("matmul %.2f (%.2f TFLOPS) comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3), end=" ")   
+                Bytes = C_buff.element_size() * C_buff.nelement()
+                print("matmul %.2f (%.2f TFLOPS) comm %.2f (%.2f GB/s) matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm*1e3, Bytes / (comm / 1e3) / 1e9, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3), end=" ")   
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
