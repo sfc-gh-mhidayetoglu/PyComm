@@ -18,8 +18,8 @@ num_layers = 126
 mini_batch = 1
 
 # parallelization parameters
-TP = 8
-DP = 2
+TP = 16
+DP = 1
 
 # report parameters
 if my_rank == root_rank:
