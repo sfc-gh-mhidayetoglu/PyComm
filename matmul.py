@@ -297,7 +297,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, D
             dist.all_reduce(max_, op=dist.ReduceOp.MAX)
             max_ = max_.item()
             if my_rank == root_rank:
-                print("row-wise layer %d" % (layer), end=" ")
+                print("2D layer %d" % (layer), end=" ")
                 FLOPs = 2 * A.size(0) * A.size(1) * B_buff.size(1)
                 Bytes_B = B_buff.element_size() * B_buff.nelement()
                 Bytes_C = C_buff.element_size() * C_buff.nelement()
@@ -311,6 +311,7 @@ B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batc
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
     if my_rank == root_rank:
