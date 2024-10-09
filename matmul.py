@@ -244,7 +244,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     
     if my_rank == root_rank:
         print(map_2D)
-        print(map_2D[5])
     return
     # Map local_rank to a 2D domain
     recvid_B = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
