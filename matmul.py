@@ -255,7 +255,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         # map_2D[i // TP_sqrt][i % TP_sqrt] = i
         # column-major
     #    map_2D[i % TP_sqrt][i // TP_sqrt] = i
-
+sdfsad
     hilbert_order = sorted(range(TP), key=lambda i: hilbert_curve_index(TP_sqrt, i // TP_sqrt, i % TP_sqrt))
     for idx, i in enumerate(hilbert_order):
         map_2D[i // TP_sqrt][i % TP_sqrt] = idx
