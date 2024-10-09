@@ -1,8 +1,7 @@
 import torch
 import torch.distributed as dist
 import time
-from enum import Enum
-import argparse
+import math
 
 # initialize
 dist.init_process_group(backend='nccl')
@@ -49,6 +48,8 @@ event_matmul_start = torch.cuda.Event(enable_timing=True)
 event_matmul_end = torch.cuda.Event(enable_timing=True)
 event_comm_start = torch.cuda.Event(enable_timing=True)
 event_comm_end = torch.cuda.Event(enable_timing=True)
+event_comm2_start = torch.cuda.Event(enable_timing=True)
+event_comm2_end = torch.cuda.Event(enable_timing=True)
 
 def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, mini_batch = None):
     # allocate memory
@@ -212,11 +213,104 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
+def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, mini_batch = None):
+    # allocate memory
+    TP_sqrt = math.isqrt(TP)
+    A = torch.randn(hidden_dim//TP_sqrt, hidden_dim//TP_sqrt, dtype=torch.bfloat16, device=my_device) # root layer (n/sqrt(TP), n/sqrt(TP))
+    list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n/sqrt(TP), n/sqrt(TP))
+    B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
+    C = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
+    B_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
+    C_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
+    # report memory usage
+    if my_rank == root_rank:
+        print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB")
+        print("list_A " + str(len(list_A)) + " size " + str(sum([A.element_size() * A.nelement() for A in list_A]) / 1e6) + " MB")
+        print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
+        print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
+        print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB")
+        print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
+        print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
+    if mini_batch is not None:
+        # synchronize
+        torch.cuda.synchronize()
+        dist.barrier()
+        time_perf = time.perf_counter()
+        event_start.record()
+        # iterate over layers
+        for layer in range(num_layers):
+            # dist.all_gather_into_tensor(B_buff, B, group=group_TP)
+            torch.matmul(list_A[layer], B_buff, out=C_buff)
+            # dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
+            C, B = B, C
+        # synchronize
+        event_end.record()
+        torch.cuda.synchronize()
+        dist.barrier()
+        time_perf = time.perf_counter() - time_perf
+        time_event = event_start.elapsed_time(event_end)
+        # report time
+        if my_rank == root_rank:
+            print("2D total %.2f event %.2f ms" % (time_perf*1e3, time_event))
+            print("2D per-iter perf %.2f event %.2f us\n" % (time_perf/num_layers*1e6, time_event/num_layers*1e3))
+    else:
+        time_comm = []
+        time_matmul = []
+        time_comm2 = []
+        time_total = []
+        # iterate over layers
+        for layer in range(num_layers):
+            # Synchronize
+            torch.cuda.synchronize()
+            dist.barrier()
+            time_start = time.perf_counter()
+            # gather B_buff
+            event_comm_start.record()
+            # dist.all_gather_into_tensor(B_buff, B, group=group_TP)
+            event_comm_end.record()
+            # partial multiplication
+            event_matmul_start.record()
+            torch.matmul(list_A[layer], B_buff, out=C)
+            event_matmul_end.record()
+            # scatter C_buff
+            event_comm2_start.record()
+            # dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
+            event_comm2_end.record()
+            # Synchronize
+            torch.cuda.synchronize()
+            time_end = time.perf_counter()
+            dist.barrier()
+            # double buffering
+            C, B = B, C
+            # record time
+            time_comm.append(event_comm_start.elapsed_time(event_comm_end))
+            time_matmul.append(event_matmul_start.elapsed_time(event_matmul_end))
+            time_comm2.append(event_comm2_start.elapsed_time(event_comm2_end))
+            time_total.append(time_end - time_start)
+        # report time
+        for layer in range(num_layers):
+            comm = time_comm[layer] # in microseconds 
+            matmul = time_matmul[layer] # in microseconds
+            comm2 = time_comm2[layer] # in microseconds
+            total = time_total[layer] # in seconds
+            max_ = torch.tensor(total, device=my_device) # in seconds
+            dist.all_reduce(max_, op=dist.ReduceOp.MAX)
+            max_ = max_.item()
+            if my_rank == root_rank:
+                print("row-wise layer %d" % (layer), end=" ")
+                FLOPs = 2 * A.size(0) * A.size(1) * B_buff.size(1)
+                Bytes_B = B_buff.element_size() * B_buff.nelement()
+                Bytes_C = C_buff.element_size() * C_buff.nelement()
+                print("comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm+matmul+comm2 = %.2f overhead %.2f us" % (comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, (comm+matmul+comm2)*1e3, total*1e6-(comm+matmul+comm2)*1e3), end=" ")
+                print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
+    return B
+
 # measure row-wise partitioning
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
     if my_rank == root_rank:
@@ -230,3 +324,9 @@ if B_rowwise.eq(torch.ones_like(B_rowwise)).all():
 else:
     if my_rank == root_rank:
         print("B_rowwise incorrect")
+if B_2D.eq(torch.ones_like(B_2D)).all():
+    if my_rank == root_rank:
+        print("B_2D correct")
+else:
+    if my_rank == root_rank:
+        print("B_2D incorrect")
