@@ -2,6 +2,7 @@ import torch
 import torch.distributed as dist
 import time
 from enum import Enum
+import argparse
 
 # initialize
 dist.init_process_group(backend='nccl')
@@ -51,7 +52,6 @@ event_comm_end = torch.cuda.Event(enable_timing=True)
 
 def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, mini_batch = None):
     # allocate memory
-    torch.cuda.empty_cache()
     A = torch.randn(hidden_dim, hidden_dim//TP, dtype=torch.bfloat16, device=my_device) # root layer (n, n/TP)
     list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n, n/TP)
     B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
@@ -125,13 +125,13 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             max_ = max_.item()
             if my_rank == root_rank:
                 print("column-wise layer %d" % (layer), end=" ")
-                print("matmul %.2f comm %.2f matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3), end=" ")   
+                FLOPs = 2 * A.size(0) * A.size(1) * B.size(1)
+                print("matmul %.2f comm %.2f (%.2f GFLOPS) matmul+comm = %.2f overhead %.2f us" % (matmul*1e3, FLOPs / (matmul / 1e3) / 1e9, comm*1e3, (matmul+comm)*1e3, total*1e6-(matmul+comm)*1e3), end=" ")   
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
 def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, mini_batch = None):
     # allocate memory
-    torch.cuda.empty_cache()
     A = torch.randn(hidden_dim//TP, hidden_dim, dtype=torch.bfloat16, device=my_device) # root layer (n/TP, n)
     list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n/TP, n)
     B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
