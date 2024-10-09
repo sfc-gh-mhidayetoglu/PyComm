@@ -235,7 +235,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
 
     # Map local_rank to a 2D domain
-    rank_2D = (local_rank // math.isqrt(TP), local_rank % TP_col)
+    rank_2D = (local_rank // math.isqrt(TP), local_rank % math.isqrt(TP))
     sendid_B = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
 
     if my_rank == root_rank:
