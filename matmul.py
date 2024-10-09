@@ -10,7 +10,6 @@ world_size = dist.get_world_size()
 torch.cuda.set_device(my_rank % torch.cuda.device_count())
 my_device = torch.cuda.current_device()
 root_rank = 7
-comm_cpu = dist.new_group(backend="gloo", use_local_synchronization=True)
 
 # model parameters
 hidden_dim = 16384
@@ -215,7 +214,7 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
-def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP_row = 1, TP_col=8, DP = 2, mini_batch = None):
+def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP = 2, mini_batch = None):
     # allocate memory
     TP_sqrt = math.isqrt(TP)
     A = torch.randn(hidden_dim//TP_sqrt, hidden_dim//TP_sqrt, dtype=torch.bfloat16, device=my_device) # root layer (n/sqrt(TP), n/sqrt(TP))
@@ -326,8 +325,8 @@ B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
-B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP_row, TP_col, DP)
-B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP_row, TP_col, DP, mini_batch)
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
     if my_rank == root_rank:
