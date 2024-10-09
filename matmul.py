@@ -327,12 +327,14 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return C
 
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
+
+exit()
 # measure row-wise partitioning
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
-B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
 B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
