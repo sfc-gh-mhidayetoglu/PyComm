@@ -18,8 +18,12 @@ num_layers = 126
 mini_batch = 1
 
 # parallelization parameters
-TP = 16
+TP_row = 4
+TP_col = 4
 DP = 1
+
+# machine parameters
+TP = TP_row * TP_col
 
 # report parameters
 if my_rank == root_rank:
@@ -29,6 +33,8 @@ if my_rank == root_rank:
     print("num layers: " + str(num_layers))
     print("mini_batch: " + str(mini_batch))
 
+    print("TP_row: " + str(TP_row))
+    print("TP_col: " + str(TP_col))
     print("TP: " + str(TP))
     print("DP: " + str(DP))
     if TP * DP != dist.get_world_size():
@@ -40,7 +46,13 @@ ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
 # print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 local_rank = my_rank % TP
-group_size = TP
+
+# Map local_rank to a 2D matrix
+rank_2D = (local_rank // TP_col, local_rank % TP_col)
+if my_rank == root_rank:
+    print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
+if my_rank == root_rank:
+    print("my_rank " + str(my_rank) + " rank_row " + str(rank_2D[0]) + " rank_col " + str(rank_2D[1]) + "\n")
 
 # Create cuda events
 event_start = torch.cuda.Event(enable_timing=True)
@@ -215,15 +227,15 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
-def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP = 8, DP = 2, mini_batch = None):
+def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP_row = 1, TP_col=8, DP = 2, mini_batch = None):
     # allocate memory
-    TP_sqrt = math.isqrt(TP)
-    A = torch.randn(hidden_dim//TP_sqrt, hidden_dim//TP_sqrt, dtype=torch.bfloat16, device=my_device) # root layer (n/sqrt(TP), n/sqrt(TP))
+    TP = TP_row * TP_col
+    A = torch.randn(hidden_dim//TP_col, hidden_dim//TP_row, dtype=torch.bfloat16, device=my_device) # root layer (n/sqrt(TP), n/sqrt(TP))
     list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n/sqrt(TP), n/sqrt(TP))
     B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
     C = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
-    B_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
-    C_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
+    B_buff = torch.empty(hidden_dim//TP_col, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
+    C_buff = torch.empty(hidden_dim//TP_row, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
     # report memory usage
     if my_rank == root_rank:
         print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB")
