@@ -281,12 +281,16 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     handle_send = list()
     handle_recv = list()
     for i in sendid_B:
-        handle = dist.isend(B, i, group=group_TP)
-        handle_send.append(handle)
+        # handle = dist.isend(B, i, group=group_TP)
+        # handle_send.append(handle)
+        if my_rank == root_rank:
+            print("send to " + str(i))
     for i in range(len(recvid_B)):
-        count = hidden_dim // TP
-        handle = dist.irecv(B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP)
-        handle_recv.append(handle)
+        if my_rank == root_rank:
+            print("recv from " + str(recvid_B[i]))
+        # count = hidden_dim // TP
+        # handle = dist.irecv(B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP)
+        # handle_recv.append(handle)
 
     # all-to-all
     # reqs = dist.batch_isend_irecv([handle_send, handle_recv])
