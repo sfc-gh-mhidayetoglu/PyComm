@@ -275,8 +275,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     if my_rank == root_rank:
         print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
-        print(recvid_B)
-        print(sendid_B)
+        print("recvid_B " + str(recvid_B))
+        print("sendid_B " + str(sendid_B))
     return
 
     if mini_batch is not None:
