@@ -283,10 +283,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     sendid = 7
     recvid = 5
 
+    handle_send = []
+    handle_recv = []
     if my_rank == sendid:
-        handle_send = dist.isend(sendbuf, recvid)
+        handle_send.append(dist.isend(sendbuf, recvid))
     if my_rank == recvid:
-        handle_recv = dist.irecv(recvbuf, sendid)
+        handle_recv.append(dist.irecv(recvbuf, sendid))
     for req in [handle_send, handle_recv]:
         req.wait()
     torch.cuda.synchronize()
