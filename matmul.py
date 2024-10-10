@@ -274,14 +274,22 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     sendid_B = map_2D[local_rank // TP_sqrt]
 
     # register point-to-point operations
-    handle_send = [dist.P2POp(dist.isend, B, i, group=group_TP) for i in sendid_B]
-    count = hidden_dim // TP
-    handle_recv = [dist.P2POp(dist.irecv, B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP) for i in range(len(recvid_B))]
+    # handle_send = [dist.P2POp(dist.isend, B, i, group=group_TP) for i in sendid_B]
+    # count = hidden_dim // TP
+    # handle_recv = [dist.P2POp(dist.irecv, B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP) for i in range(len(recvid_B))]
+
+    handle_send = list()
+    handle_recv = list()
+    for i in sendid_B:
+        handle_send.append(dist.isend(B, i, group=group_TP))
+    for i in range(len(recvid_B)):
+        count = hidden_dim // TP
+        handle_recv.append(dist.irecv(B_buff[i*count:(i+1)*count], recvid_B[i], recvid_B[i], group=group_TP))
 
     # all-to-all
-    reqs = dist.batch_isend_irecv([handle_send, handle_recv])
-    # for req in reqs:
-    #    req.wait()
+    # reqs = dist.batch_isend_irecv([handle_send, handle_recv])
+    for req in [handle_send, handle_recv]
+       req.wait()
 
     if my_rank == root_rank:
         print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
