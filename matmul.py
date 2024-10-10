@@ -294,8 +294,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     # all-to-all
     # reqs = dist.batch_isend_irecv([handle_send, handle_recv])
-    for req in [handle_send, handle_recv]:
-       req.wait()
+    # for req in [handle_send, handle_recv]:
+    #    req.wait()
 
     if my_rank == root_rank:
         print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
