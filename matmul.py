@@ -282,10 +282,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     recvbuf = torch.zeros_like(sendbuf)
     sendid = 7
     recvid = 5
-    if my_rank == sendid:
-        dist.send(sendbuf, recvid)
-    if my_rank == recvid:
-        dist.recv(recvbuf, sendid)
+
+    dist.all_reduce(sendbuf)
+    # if my_rank == sendid:
+    #     dist.send(sendbuf, recvid)
+    # if my_rank == recvid:
+    #     dist.recv(recvbuf, sendid)
 
     return
     handle_send = [dist.Work]*len(sendid_B)
