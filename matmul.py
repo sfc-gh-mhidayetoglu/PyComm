@@ -270,7 +270,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         else:
             continue
         break
-    recvid_B = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
+    recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
     sendid_B = map_2D[local_rank // TP_sqrt]
 
     if my_rank == root_rank:
