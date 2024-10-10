@@ -255,21 +255,29 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         # map_2D[i // TP_sqrt][i % TP_sqrt] = i
         # column-major
     #    map_2D[i % TP_sqrt][i // TP_sqrt] = i
-    hilbert_order = sorted(range(TP), key=lambda i: hilbert_curve_index(TP_sqrt, i // TP_sqrt, i % TP_sqrt))
-    for idx, i in enumerate(hilbert_order):
+    # random order: [[0, 1, 12, 5], [11, 2, 7, 6], [4, 13, 8, 9], [15, 14, 3, 10]]
+    random_order = sorted(range(TP), key=lambda i: hilbert_curve_index(TP_sqrt, i // TP_sqrt, i % TP_sqrt))
+    for idx, i in enumerate(random_order):
         map_2D[i // TP_sqrt][i % TP_sqrt] = idx
-    # rank_2D = (local_rank // TP_sqrt, local_rank % TP_sqrt)
-    
     if my_rank == root_rank:
         print(map_2D)
-    return
     # Map local_rank to a 2D domain
+    for i in range(TP_sqrt):
+        for j in range(TP_sqrt):
+            if map_2D[i][j] == local_rank:
+                rank_2D = (i, j)
+                break
+        else:
+            continue
+        break
     recvid_B = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
+    sendid_B = map_2D[local_rank // TP_sqrt]
 
     if my_rank == root_rank:
         print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
-        print("my_rank " + str(my_rank) + " rank_row " + str(rank_2D[0]) + " rank_col " + str(rank_2D[1]) + "\n")
         print(recvid_B)
+        print(sendid_B)
+    return
 
     if mini_batch is not None:
         # synchronize
