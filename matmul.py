@@ -273,8 +273,23 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
     sendid_B = map_2D[local_rank // TP_sqrt]
 
+    for i in sendid_B:
+        if my_rank == root_rank:
+            print("send to " + str(i))
+        handle_send = [dist.isend(B, dst=i, group=group_TP)]
+    for i in recvid_B:
+        offset = i % TP_sqrt
+        count = hidden_dim // TP
+        if my_rank == root_rank:
+            print("recv from " + str(i) + " offset " + str(offset) + " count " + str(count))
+        handle_recv = [dist.irecv(B_buff[offset*count:(offset + 1)*count], src=i, group=group_TP)]
+    for i in [handle_send, handle_recv]:
+        i.wait()
+
     if my_rank == root_rank:
         print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
+        print(handle_send)
+        print(handle_recv)
         print("recvid_B " + str(recvid_B))
         print("sendid_B " + str(sendid_B))
     return
