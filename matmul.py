@@ -283,15 +283,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     sendid = 7
     recvid = 5
 
-    dist.all_reduce(sendbuf)
-    if my_rank == sendid:
-        dist.send(sendbuf, recvid)
-    if my_rank == recvid:
-        dist.recv(recvbuf, sendid)
-    torch.cuda.synchronize()
-    dist.barrier()
 
-    return
     handle_send = [dist.Work]*len(sendid_B)
     handle_recv = [dist.Work]*len(recvid_B)
     for i in sendid_B:
@@ -310,6 +302,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     # reqs = dist.batch_isend_irecv([handle_send, handle_recv])
     for req in [handle_send, handle_recv]:
        req.wait()
+    torch.cuda.synchronize()
 
     if my_rank == root_rank:
         print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
