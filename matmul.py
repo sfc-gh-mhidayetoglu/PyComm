@@ -259,8 +259,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     random_order = sorted(range(TP), key=lambda i: hilbert_curve_index(TP_sqrt, i // TP_sqrt, i % TP_sqrt))
     for idx, i in enumerate(random_order):
         map_2D[i // TP_sqrt][i % TP_sqrt] = idx
-    if my_rank == root_rank:
-        print(map_2D)
     # Map local_rank to a 2D domain
     for i in range(TP_sqrt):
         for j in range(TP_sqrt):
@@ -273,7 +271,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
     sendid_B = map_2D[local_rank // TP_sqrt]
 
-    print("myid " + str(my_rank) + " recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B))
+    print("myid " + str(my_rank) + " map_2D " + str(map_2D) + " recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B))
 
     return
 
