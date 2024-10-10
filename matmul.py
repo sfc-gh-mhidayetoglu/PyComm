@@ -273,6 +273,19 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D) + " recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B))
 
+    buffer = torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
+    sendlist = [i in range(TP)]
+    recvlist = [i in range(TP)]
+    handle_send = list()
+    handle_recv = list()
+    for i in sendlist:
+        handle_send.append(dist.isend(buffer, i, group=group_TP))
+    for i in recvlist:
+        handle_recv.append(dist.irecv(buffer, i, group=group_TP))
+    for req in handle_send+handle_recv:
+        req.wait()
+    torch.cuda.synchronize()
+
     return
 
     # register point-to-point operations
