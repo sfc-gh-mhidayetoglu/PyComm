@@ -284,10 +284,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     recvid = 5
 
     dist.all_reduce(sendbuf)
-    # if my_rank == sendid:
-    #     dist.send(sendbuf, recvid)
-    # if my_rank == recvid:
-    #     dist.recv(recvbuf, sendid)
+    if my_rank == sendid:
+        dist.send(sendbuf, recvid)
+    if my_rank == recvid:
+        dist.recv(recvbuf, sendid)
+    torch.cuda.synchronize()
+    dist.barrier()
 
     return
     handle_send = [dist.Work]*len(sendid_B)
