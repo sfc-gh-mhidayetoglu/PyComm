@@ -278,6 +278,16 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     # count = hidden_dim // TP
     # handle_recv = [dist.P2POp(dist.irecv, B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP) for i in range(len(recvid_B))]
 
+    sendbuf = torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
+    recvbuf = torch.zeros_like(sendbuf)
+    sendid = 7
+    recvid = 5
+    if my_rank == sendid:
+        dist.send(sendbuf, recvid)
+    if my_rank == recvid:
+        dist.recv(recvbuf, sendid)
+
+    return
     handle_send = [dist.Work]*len(sendid_B)
     handle_recv = [dist.Work]*len(recvid_B)
     for i in sendid_B:
