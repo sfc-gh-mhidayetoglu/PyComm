@@ -269,9 +269,14 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             continue
         break
     recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
-    sendid_B = map_2D[local_rank // TP_sqrt]
+    sendid_B = map_2D[:,local_rank // TP_sqrt]
 
-    print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D) + " recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B))
+    recvid_C = map_2D[local_rank // TP_sqrt,:]
+    sendid_C = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
+
+    print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D))
+    print("recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B))
+    print("recvid_C " + str(recvid_C) + " sendid_C " + str(sendid_C))
 
     sendbuf = torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
     recvbuf = torch.ones_like(sendbuf)
