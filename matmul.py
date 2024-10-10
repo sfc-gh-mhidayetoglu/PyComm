@@ -273,6 +273,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
     sendid_B = map_2D[local_rank // TP_sqrt]
 
+    print("myid " + str(my_rank) + " recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B))
+
+    return
+
     # register point-to-point operations
     # handle_send = [dist.P2POp(dist.isend, B, i, group=group_TP) for i in sendid_B]
     # count = hidden_dim // TP
