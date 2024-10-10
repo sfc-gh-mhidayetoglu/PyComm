@@ -285,6 +285,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     handle_send = []
     handle_recv = []
+    print([handle_send, handle_recv])
+    return 
     if my_rank == sendid:
         handle_send.append(dist.isend(sendbuf, recvid))
     if my_rank == recvid:
