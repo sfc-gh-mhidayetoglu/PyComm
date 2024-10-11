@@ -282,11 +282,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     # Initiate non-uniform all-to-all communication
     for i, dest_rank in enumerate(sendid_B):
-        if dest_rank != my_rank:
+        if dest_rank != local_rank:
             print("myid " + str(my_rank) + " send to " + str(dest_rank))
             handle_send.append(dist.isend(tensor=B, dst=dest_rank, group=group_TP))
     for i, src_rank in enumerate(recvid_B):
-        if src_rank != my_rank:
+        if src_rank != local_rank:
             print("myid " + str(my_rank) + " recv from " + str(src_rank))
             count = hidden_dim // TP
             B_temp = B_buff[i*count:(i+1)*count]
