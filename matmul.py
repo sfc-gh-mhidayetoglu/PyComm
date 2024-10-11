@@ -250,25 +250,13 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
         print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
 
-    map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
-    # for i in range(TP):
-        # row-major
-        # map_2D[i // TP_sqrt][i % TP_sqrt] = i
-        # column-major
-    #    map_2D[i % TP_sqrt][i // TP_sqrt] = i
-    # random order: [[0, 1, 12, 5], [11, 2, 7, 6], [4, 13, 8, 9], [15, 14, 3, 10]]
-    random_order = sorted(range(TP), key=lambda i: hilbert_curve_index(TP_sqrt, i // TP_sqrt, i % TP_sqrt))
-    for idx, i in enumerate(random_order):
-        map_2D[i // TP_sqrt][i % TP_sqrt] = idx
+    # map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
+    map_2D = [[0, 1, 12, 5], [11, 2, 7, 6], [4, 13, 8, 9], [15, 14, 3, 10]] # arbitrary order
     # Map local_rank to a 2D domain
+    rank_2D = [None] * TP
     for i in range(TP_sqrt):
         for j in range(TP_sqrt):
-            if map_2D[i][j] == local_rank:
-                rank_2D = (i, j)
-                break
-        else:
-            continue
-        break
+            rank_2D[map_2D[i][j]] = (i, j)
 
     print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D))
     return
