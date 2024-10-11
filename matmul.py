@@ -275,12 +275,19 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     recvid_C = map_2D[local_rank // TP_sqrt]
     sendid_C = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
 
-    print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D) + "recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B) + "recvid_C " + str(recvid_C) + " sendid_C " + str(sendid_C))
+    # print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D) + "recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B) + "recvid_C " + str(recvid_C) + " sendid_C " + str(sendid_C))
 
     handle_send = []
     handle_recv = []
     sendlist = [i for i in range(TP)]
     recvlist = [i for i in range(TP)]
+
+    sendid_B_buff = map_2D[local_rank % TP_sqrt][local_rank // TP_sqrt]
+    recvid_B_buff = rank_2D[0] * TP_sqrt + rank_2D[1]
+
+    print("myid " + str(my_rank) + " sendid_B_buff " + str(sendid_B_buff) + " recvid_B_buff " + str(recvid_B_buff))
+
+    return
 
     # Initiate non-uniform all-to-all communication
     for i, dest_rank in enumerate(sendlist):
