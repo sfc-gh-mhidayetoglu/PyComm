@@ -284,6 +284,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     for i in sendid_B:
         handle_send.append(dist.isend(B, i, group=group_TP))
     for i in range(len(recvid_B)):
+        count = hidden_dim // TP
         handle_recv.append(dist.irecv(B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP))
     for req in handle_send+handle_recv:
         req.wait()
