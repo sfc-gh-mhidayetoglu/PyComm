@@ -279,18 +279,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     print("recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B))
     print("recvid_C " + str(recvid_C) + " sendid_C " + str(sendid_C))
 
-    return
-
-    sendbuf = torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
-    recvbuf = torch.ones_like(sendbuf)
-    sendlist = [i in range(TP)]
-    recvlist = [i in range(TP)]
     handle_send = list()
     handle_recv = list()
-    for i in sendlist:
-        handle_send.append(dist.isend(sendbuf, i, group=group_TP))
-    for i in recvlist:
-        handle_recv.append(dist.irecv(recvbuf, i, group=group_TP))
+    for i in sendid_B:
+        handle_send.append(dist.isend(B, i, group=group_TP))
+    for i in range(len(recvid_B)):
+        handle_recv.append(dist.irecv(B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP))
     for req in handle_send+handle_recv:
         req.wait()
     torch.cuda.synchronize()
