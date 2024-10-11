@@ -277,12 +277,20 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D) + "recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B) + "recvid_C " + str(recvid_C) + " sendid_C " + str(sendid_C))
 
+    # Perform non-uniform all-to-all communication for B
+    input_tensor_list = B.chunk(TP_sqrt, dim=0)
+    output_tensor_list = [torch.empty_like(input_tensor_list[0]) for _ in range(TP_sqrt)]
+    dist.all_to_all(output_tensor_list, input_tensor_list, group=group_TP)
+    B_buff = torch.cat(output_tensor_list, dim=0)
+    torch.cuda.synchronize()
+
+    return
     handle_send = list()
     handle_recv = list()
     for i in sendid_B:
         # handle_send.append(dist.isend(B, i, group=group_TP))
         if my_rank == root_rank:
-            print("B " + str(B_temp.size()))
+            print("B " + str(B.size()))
     for i in range(len(recvid_B)):
         count = hidden_dim // TP
         B_temp = B_buff[i*count:(i+1)*count]
