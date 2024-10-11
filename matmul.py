@@ -262,6 +262,13 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     if my_rank == root_rank:
         print("myid " + str(my_rank) + "\nrank_2D " + str(rank_2D) + "\nmap_2D " + str(map_2D) + "\nmatrix " + str(matrix))
 
+    for sendid in range(TP):
+        for recvid in range(TP):
+            if local_rank == sendid:
+                print("myid " + str(my_rank) + " send to " + str(recvid))
+            if local_rank == recvid:
+                print("myid " + str(my_rank) + " recv from " + str(sendid))
+
 
     return
 
