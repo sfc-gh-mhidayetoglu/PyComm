@@ -284,13 +284,16 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     for i, dest_rank in enumerate(sendid_B):
         if dest_rank != local_rank:
             print("myid " + str(my_rank) + " send to " + str(dest_rank))
-            handle_send.append(dist.isend(tensor=B, dst=dest_rank, group=group_TP))
+            tensor = torch.empty_like(B)
+            handle_send.append(dist.isend(tensor, dest_rank, group=group_TP))
     for i, src_rank in enumerate(recvid_B):
         if src_rank != local_rank:
             print("myid " + str(my_rank) + " recv from " + str(src_rank))
-            count = hidden_dim // TP
-            B_temp = B_buff[i*count:(i+1)*count]
-            handle_recv.append(dist.irecv(tensor=B_temp, src=src_rank, group=group_TP))
+            tensor = torch.empty_like(B)
+            handle_recv.append(dist.irecv(B, src_rank, group=group_TP))
+            # count = hidden_dim // TP
+            # B_temp = B_buff[i*count:(i+1)*count]
+        
 
     # Wait for all send and receive operations to complete
     for req in handle_send + handle_recv:
