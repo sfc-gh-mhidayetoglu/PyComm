@@ -269,6 +269,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         else:
             continue
         break
+
+    print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D))
+    return
+
     recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
     sendid_B = np.transpose(map_2D)[local_rank // TP_sqrt]
 
@@ -283,15 +287,15 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     print("myid " + str(my_rank) + " sendid_B_buff " + str(sendid_B_buff) + " recvid_B_buff " + str(recvid_B_buff))
 
-    if sendid_B_buff == local_rank:
+    if local_rank == sendid_B_buff:
         B_temp = B.clone()
     else:
         B_temp = torch.empty_like(B)
-        if sendid_B_buff > recvid_B_buff:
+        if local_rank > sendid_B_buff:
           req = dist.isend(B, sendid_B_buff, group=group_TP)
           dist.irecv(B_temp, recvid_B_buff, group=group_TP).wait()
           req.wait()
-        else
+        else:
           req = dist.irecv(B_temp, recvid_B_buff, group=group_TP)
           dist.isend(B, sendid_B_buff, group=group_TP).wait()
           req.wait()
