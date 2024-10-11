@@ -277,31 +277,23 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     # print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D) + "recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B) + "recvid_C " + str(recvid_C) + " sendid_C " + str(sendid_C))
 
-    handle_send = []
-    handle_recv = []
-    sendlist = [i for i in range(TP)]
-    recvlist = [i for i in range(TP)]
-
+    B_temp = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device)
     sendid_B_buff = map_2D[local_rank % TP_sqrt][local_rank // TP_sqrt]
     recvid_B_buff = rank_2D[1] * TP_sqrt + rank_2D[0]
 
-    dist.all_gather(sendlist, torch.tensor(recvid_B_buff, device=my_device), group=group_TP)
-    sendlist = sendlist.cpu().numpy().tolist()
-
-    if my_rank == root_rank:
-        print(sendlist)
-    return
-
     print("myid " + str(my_rank) + " sendid_B_buff " + str(sendid_B_buff) + " recvid_B_buff " + str(recvid_B_buff))
 
-    if sendid_B_buff == recvid_B_buff:
-        B_temp = B
+    if sendid_B_buff == local_rank:
+        B_temp = B.clone()
     else:
-        if sendid_B_buff < recvid_B_buff:
+        B_temp = torch.empty_like(B)
+        if sendid_B_buff > recvid_B_buff:
           req = dist.isend(B, sendid_B_buff, group=group_TP)
-        else
-          B_temp = torch.empty_like(B)
           dist.irecv(B_temp, recvid_B_buff, group=group_TP).wait()
+          req.wait()
+        else
+          req = dist.irecv(B_temp, recvid_B_buff, group=group_TP)
+          dist.isend(B, sendid_B_buff, group=group_TP).wait()
           req.wait()
 
     return
