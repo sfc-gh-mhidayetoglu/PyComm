@@ -260,7 +260,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     matrix = [[0 for _ in range(TP)] for _ in range(TP)]
     if my_rank == root_rank:
-        print("myid " + str(my_rank) + "\nrank_2D " + str(rank_2D) + "\nmap_2D " + str(map_2D) + "\nmatrix " + str(matrix))
+        print("myid " + str(my_rank) + "\nrank_2D " + str(rank_2D) + "\nmap_2D " + str(map_2D))
+        print("matrix ")
+        for row in matrix:
+            print(row)
 
     for sendid in range(TP):
         for recvid in range(TP):
