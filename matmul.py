@@ -285,6 +285,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     sendid_B_buff = map_2D[local_rank % TP_sqrt][local_rank // TP_sqrt]
     recvid_B_buff = rank_2D[1] * TP_sqrt + rank_2D[0]
 
+    print("myid " + str(my_rank) + " sendid_B_buff " + str(sendid_B_buff) + " recvid_B_buff " + str(recvid_B_buff))
+
+    return
+
     if sendid_B_buff == recvid_B_buff:
         B_temp = B
     else:
@@ -293,7 +297,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         dist.irecv(B_temp, recvid_B_buff, group=group_TP).wait()
         req.wait()
     
-    print("myid " + str(my_rank) + " sendid_B_buff " + str(sendid_B_buff) + " recvid_B_buff " + str(recvid_B_buff))
 
 
 
