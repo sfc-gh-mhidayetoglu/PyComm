@@ -269,9 +269,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             continue
         break
     recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
-    sendid_B = map_2D[:,local_rank // TP_sqrt]
+    col_index = local_rank // TP_sqrt
+    sendid_B = [row[col_index:col_index+1] for row in map_2D]
 
-    recvid_C = map_2D[local_rank // TP_sqrt,:]
+    recvid_C = map_2D[local_rank // TP_sqrt]
     sendid_C = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
 
     print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D))
