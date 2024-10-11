@@ -265,12 +265,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for row in matrix:
             print(row)
 
-    for sendid in range(TP):
-        for recvid in range(TP):
-            if local_rank == sendid:
-                print("myid " + str(my_rank) + " send to " + str(recvid))
-            if local_rank == recvid:
-                print("myid " + str(my_rank) + " recv from " + str(sendid))
+    sendlist = [map_2D[rank % TP_sqrt][rank // TP_sqrt] for rank in range(TP)]
+    recvlist = [rank_2D[rank][1] * TP_sqrt + rank_2D[rank][0] for rank in range(TP)]
+
+    if my_rank == root_rank:
+        print("myid " + str(my_rank) + " sendlist " + str(sendlist) + " recvlist " + str(recvlist))
 
 
     return
