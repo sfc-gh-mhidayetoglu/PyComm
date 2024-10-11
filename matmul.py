@@ -2,6 +2,7 @@ import torch
 import torch.distributed as dist
 import time
 import math
+import numpy as np
 
 # initialize
 dist.init_process_group(backend='nccl')
@@ -269,8 +270,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             continue
         break
     recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
-    col_index = local_rank // TP_sqrt
-    sendid_B = [row[col_index:col_index+1] for row in map_2D]
+    sendid_B = np.transpose(map_2D)[local_rank // TP_sqrt]
 
     recvid_C = map_2D[local_rank // TP_sqrt]
     sendid_C = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
