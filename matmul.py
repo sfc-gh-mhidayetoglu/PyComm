@@ -277,12 +277,24 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D) + "recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B) + "recvid_C " + str(recvid_C) + " sendid_C " + str(sendid_C))
 
-    # Perform non-uniform all-to-all communication for B
-    input_tensor_list = B.chunk(TP_sqrt, dim=0)
-    output_tensor_list = [torch.empty_like(input_tensor_list[0]) for _ in range(TP_sqrt)]
-    dist.all_to_all(output_tensor_list, input_tensor_list, group=group_TP)
-    B_buff = torch.cat(output_tensor_list, dim=0)
+    handle_send = []
+    handle_recv = []
+
+    # Initiate non-uniform all-to-all communication
+    for i, dest_rank in enumerate(sendid_B):
+        handle_send.append(dist.isend(tensor=B, dst=dest_rank, group=group_TP))
+    
+    for i, src_rank in enumerate(recvid_B):
+        count = hidden_dim // TP
+        B_temp = B_buff[i*count:(i+1)*count]
+        handle_recv.append(dist.irecv(tensor=B_temp, src=src_rank, group=group_TP))
+
+    # Wait for all send and receive operations to complete
+    for req in handle_send + handle_recv:
+        req.wait()
+
     torch.cuda.synchronize()
+    dist.barrier()
 
     return
     handle_send = list()
