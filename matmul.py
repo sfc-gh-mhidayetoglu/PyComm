@@ -279,14 +279,16 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     handle_send = []
     handle_recv = []
+    sendlist = [i for i in range(TP)]
+    recvlist = [i for i in range(TP)]
 
     # Initiate non-uniform all-to-all communication
-    for i, dest_rank in enumerate(sendid_B):
+    for i, dest_rank in enumerate(sendlist):
         if dest_rank != local_rank:
             print("myid " + str(my_rank) + " send to " + str(dest_rank))
             tensor = torch.empty_like(B)
             handle_send.append(dist.isend(tensor, dest_rank, group=group_TP))
-    for i, src_rank in enumerate(recvid_B):
+    for i, src_rank in enumerate(recvlist):
         if src_rank != local_rank:
             print("myid " + str(my_rank) + " recv from " + str(src_rank))
             tensor = torch.empty_like(B)
