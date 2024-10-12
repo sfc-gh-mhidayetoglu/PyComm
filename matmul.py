@@ -19,7 +19,7 @@ num_layers = 126
 mini_batch = 1
 
 # parallelization parameters
-TP = 16
+TP = 64
 DP = 1
 
 # report parameters
