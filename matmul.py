@@ -292,6 +292,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             print(str(comm[0]) + " -> " + str(comm[1]))
 
     dist.barrier()
+    time_start = time.perf_counter()
     for sender, recver in commlist:
         if sender == recver:
             if local_rank == sender:
@@ -301,9 +302,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 dist.send(sendbuf, recver, group=group_TP)
             if local_rank == recver:
                 dist.recv(recvbuf, sender, group=group_TP)
-        if my_rank == root_rank:
-            print(str(sender) + " -> " + str(recver))
+    torch.cuda.synchronize()
     dist.barrier()
+    time_end = time.perf_counter()
+    if my_rank == root_rank:
+        print("total %.2f us" % ((time_end - time_start) * 1e6))
 
     return
 
