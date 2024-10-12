@@ -270,10 +270,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for i in range(max(x.bit_length(), y.bit_length())):
             answer |= ((x >> i) & 1) << (2 * i + 1) | ((y >> i) & 1) << (2 * i)
         return answer
-    map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]'''
+    map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
     for i in range(TP_sqrt):
         for j in range(TP_sqrt):
-            map_2D[i][j] = morton_index(i, j)
+            map_2D[i][j] = morton_index(i, j)'''
+
     # Map local_rank to a 2D domain
     rank_2D = [None] * TP
     for i in range(TP_sqrt):
