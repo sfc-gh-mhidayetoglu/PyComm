@@ -304,7 +304,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 if val == 1:
                     print("█", end=" ")  # Using '█' for black box
                 else:
-                    print(" ", end=" ")  # Using space for white box
+                    print(".", end=" ")  # Using space for white box
             print()
 
     # Create global communication list
