@@ -83,9 +83,9 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             torch.matmul(list_A[layer], B, out=C_buff)
             dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
             C, B = B, C
-            torch.cuda.synchronize()
         # synchronize
         event_end.record()
+        torch.cuda.synchronize()
         dist.barrier()
         time_perf = time.perf_counter() - time_perf
         time_event = event_start.elapsed_time(event_end)
@@ -164,9 +164,9 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             dist.all_gather_into_tensor(B_buff, B, group=group_TP)
             torch.matmul(list_A[layer], B_buff, out=C)
             C, B = B, C
-            torch.cuda.synchronize()
         # synchronize
         event_end.record()
+        torch.cuda.synchronize()
         dist.barrier()
         time_perf = time.perf_counter() - time_perf
         time_event = event_start.elapsed_time(event_end)
@@ -388,9 +388,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             torch.matmul(list_A[layer], B_buff, out=C_buff)
             dist.reduce_scatter_tensor(C, C_buff, group=group_TP_row)
             C, B = B, C
-            torch.cuda.synchronize()
         # synchronize
         event_end.record()
+        torch.cuda.synchronize()
         dist.barrier()
         time_perf = time.perf_counter() - time_perf
         time_event = event_start.elapsed_time(event_end)
