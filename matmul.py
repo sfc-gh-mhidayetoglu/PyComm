@@ -299,11 +299,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     print("myid " + str(my_rank) + " row_group " + str(row_group) + " col_group " + str(col_group))
 
-    for layer in range(num_layers):
+    '''for layer in range(num_layers):
         torch.cuda.synchronize()
         dist.barrier()
         time_start = time.perf_counter()
-        '''for sender, recver in commlist:
+        for sender, recver in commlist:
             if sender == recver:
                 if local_rank == sender:
                     recvbuf = sendbuf.clone()
@@ -311,7 +311,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 if local_rank == sender:
                     dist.send(sendbuf, recver, group=group_TP)
                 if local_rank == recver:
-                    dist.recv(recvbuf, sender, group=group_TP)'''
+                    dist.recv(recvbuf, sender, group=group_TP)
         # torch.cuda.synchronize()
         # dist.barrier()
         dist.all_gather_into_tensor(B_buff, recvbuf, group=group_TP_col)
@@ -321,130 +321,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         dist.barrier()
         time_end = time.perf_counter()
         if my_rank == root_rank:
-            print("total %.2f us" % ((time_end - time_start) * 1e6))
-
-    return
-
-    recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
-    sendid_B = np.transpose(map_2D)[local_rank // TP_sqrt]
-
-    recvid_C = map_2D[local_rank // TP_sqrt]
-    sendid_C = [i for i in range(rank_2D[0] * TP_sqrt, rank_2D[0] * TP_sqrt + TP_sqrt)]
-
-    # print("myid " + str(my_rank) + " rank_2D " + str(rank_2D) + " map_2D " + str(map_2D) + "recvid_B " + str(recvid_B) + " sendid_B " + str(sendid_B) + "recvid_C " + str(recvid_C) + " sendid_C " + str(sendid_C))
-
-    B_temp = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device)
-    sendid_B_buff = map_2D[local_rank % TP_sqrt][local_rank // TP_sqrt]
-    recvid_B_buff = rank_2D[1] * TP_sqrt + rank_2D[0]
-
-    print("myid " + str(my_rank) + " sendid_B_buff " + str(sendid_B_buff) + " recvid_B_buff " + str(recvid_B_buff))
-
-    if local_rank == sendid_B_buff:
-        B_temp = B.clone()
-    else:
-        B_temp = torch.empty_like(B)
-        if local_rank > sendid_B_buff:
-          req = dist.isend(B, sendid_B_buff, group=group_TP)
-          dist.irecv(B_temp, recvid_B_buff, group=group_TP).wait()
-          req.wait()
-        else:
-          req = dist.irecv(B_temp, recvid_B_buff, group=group_TP)
-          dist.isend(B, sendid_B_buff, group=group_TP).wait()
-          req.wait()
-
-    return
-
-    # Initiate non-uniform all-to-all communication
-    for i, dest_rank in enumerate(sendlist):
-        if dest_rank != local_rank:
-            print("myid " + str(my_rank) + " send to " + str(dest_rank))
-            tensor = torch.empty_like(B)
-            handle_send.append(dist.isend(tensor, dest_rank, group=group_TP))
-    for i, src_rank in enumerate(recvlist):
-        if src_rank != local_rank:
-            print("myid " + str(my_rank) + " recv from " + str(src_rank))
-            tensor = torch.empty_like(B)
-            handle_recv.append(dist.irecv(B, src_rank, group=group_TP))
-            # count = hidden_dim // TP
-            # B_temp = B_buff[i*count:(i+1)*count]
-        
-
-    # Wait for all send and receive operations to complete
-    for req in handle_send + handle_recv:
-        req.wait()
-
-    torch.cuda.synchronize()
-    dist.barrier()
-
-    return
-    handle_send = list()
-    handle_recv = list()
-    for i in sendid_B:
-        # handle_send.append(dist.isend(B, i, group=group_TP))
-        if my_rank == root_rank:
-            print("B " + str(B.size()))
-    for i in range(len(recvid_B)):
-        count = hidden_dim // TP
-        B_temp = B_buff[i*count:(i+1)*count]
-        if my_rank == root_rank:
-            print("B_temp " + str(B_temp.size()))
-        # handle_recv.append(dist.irecv(B_temp, recvid_B[i], group=group_TP))
-    for req in handle_send+handle_recv:
-        req.wait()
-    torch.cuda.synchronize()
-
-    return
-
-    # register point-to-point operations
-    # handle_send = [dist.P2POp(dist.isend, B, i, group=group_TP) for i in sendid_B]
-    # count = hidden_dim // TP
-    # handle_recv = [dist.P2POp(dist.irecv, B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP) for i in range(len(recvid_B))]
-
-    sendbuf = torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
-    recvbuf = torch.zeros_like(sendbuf)
-    sendid = 7
-    recvid = 5
-
-    handle_send = list()
-    handle_recv = list()
-    if my_rank == sendid:
-        handle_send.append(dist.isend(sendbuf, recvid))
-    if my_rank == recvid:
-        handle_recv.append(dist.irecv(recvbuf, sendid))
-    for req in handle_send+handle_recv:
-        req.wait()
-    torch.cuda.synchronize()
-
-    return
-
-    handle_send = list()
-    handle_recv = list()
-    for i in sendid_B:
-        handle = dist.isend(B, i, group=group_TP)
-        handle_send.append(handle)
-        print("myid " + str(my_rank) + " send to " + str(i))
-    for i in range(len(recvid_B)):
-        print("myid " + str(my_rank) + " recv from " + str(recvid_B[i]))
-        # count = hidden_dim // TP
-        # handle = dist.irecv(B_buff[i*count:(i+1)*count], recvid_B[i], group=group_TP)
-        handle = dist.irecv(B, recvid_B[i], group=group_TP)
-        handle_recv.append(handle)
-
-    # all-to-all
-    # reqs = dist.batch_isend_irecv([handle_send, handle_recv])
-    for req in [handle_send, handle_recv]:
-       req.wait()
-    torch.cuda.synchronize()
-    dist.barrier()
-
-    if my_rank == root_rank:
-        print(f"my_rank {my_rank} maps to 2D rank {rank_2D}")
-        print(handle_send)
-        print(handle_recv)
-        print("recvid_B " + str(recvid_B))
-        print("sendid_B " + str(sendid_B))
-
-    return
+            print("total %.2f us" % ((time_end - time_start) * 1e6))'''
 
     if mini_batch is not None:
         # synchronize
@@ -458,8 +335,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             # for i in range(TP_sqrt):
             #     handle_list[i] = dist.irecv(B_buff[i*TP_sqrt:(i+1)*TP_sqrt], src=B_col_panel[i], group=group_TP)
             # dist.all_gather_into_tensor(B_buff, B, group=group_TP)
+            dist.all_gather_into_tensor(B_buff, B, group=group_TP_col)
             torch.matmul(list_A[layer], B_buff, out=C_buff)
-            # dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
+            dist.reduce_scatter_tensor(C, C_buff, group=group_TP_row)
             C, B = B, C
         # synchronize
         event_end.record()
@@ -523,9 +401,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return C
 
-B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
-
-exit()
 # measure row-wise partitioning
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
