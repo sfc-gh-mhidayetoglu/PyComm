@@ -297,14 +297,17 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for row in matrix_1:
             print(" ".join(map(str, row)))
     if my_rank == root_rank:
+        # Print/draw black and white checkerboard with equal sides
         print("Checkerboard pattern of matrix_1:")
         for i, row in enumerate(matrix_1):
             for j, val in enumerate(row):
                 if val == 1:
-                    print("X", end=" ")
+                print("█", end=" ")  # Using '█' for black box
                 else:
-                    print(".", end=" ")
+                print(" ", end=" ")  # Using space for white box
             print()
+
+    # Create global communication list
     commlist = list()
     for sender in range(TP):
         for recver in range(TP):
