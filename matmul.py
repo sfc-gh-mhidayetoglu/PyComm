@@ -271,13 +271,14 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     for i in range(TP):
         matrix_1[i][sendlist[i]] = 1
         matrix_2[recvlist[i]][i] = 1
+    if matrix_1 != matrix_2:
+        if my_rank == root_rank:
+            print("matrix_1 != matrix_2")
     if my_rank == root_rank:
-        print("matrix 1")
-        for row in matrix_1:
-            print(row)
-        print("matrix 2")
-        for row in matrix_2:
-            print(row)
+        print("transpose of matrix 1")
+        for row in zip(*matrix_1):
+            print(" ".join(map(str, row)))
+    if my_rank == root_rank:
         print("transpose of matrix 1")
         for row in zip(*matrix_1):
             print(row)
