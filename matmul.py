@@ -278,6 +278,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         print("matrix 2")
         for row in matrix_2:
             print(row)
+        print("transpose of matrix 1")
+        for row in zip(*matrix_1):
+            print(row)
 
     for sender in range(TP):
         for recver in range(TP):
