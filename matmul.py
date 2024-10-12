@@ -324,7 +324,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         req.wait()
     torch.cuda.synchronize()
     dist.barrier()
-    return''' 
+    return'''
+
+    print("myid " + str(my_rank) + " commlist " + str(commlist))
 
     B_temp = torch.empty_like(B)
     C_temp = torch.empty_like(C)
@@ -332,18 +334,15 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     for layer in range(num_layers):
         dist.barrier()
         time_start = time.perf_counter()
-        reqs = []
         for sender, recver in commlist:
             if sender == recver:
                 if local_rank == sender:
                     B_temp = B.clone()
             else:
                 if local_rank == sender:
-                    reqs.append(dist.isend(B, recver, group=group_TP))
+                    dist.send(B, recver, group=group_TP)
                 if local_rank == recver:
-                    reqs.append(dist.irecv(B_temp, sender, group=group_TP))
-        for req in reqs:
-            req.wait()
+                    dist.recv(B_temp, sender, group=group_TP)
         # torch.cuda.synchronize()
         # dist.barrier()
         dist.all_gather_into_tensor(B_buff,B_temp, group=group_TP_col)
