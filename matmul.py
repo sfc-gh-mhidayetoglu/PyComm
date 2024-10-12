@@ -296,7 +296,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         torch.cuda.synchronize()
         dist.barrier()
         time_start = time.perf_counter()
-        for sender, recver in commlist:
+        '''for sender, recver in commlist:
             if sender == recver:
                 if local_rank == sender:
                     recvbuf = sendbuf.clone()
@@ -304,7 +304,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 if local_rank == sender:
                     dist.send(sendbuf, recver, group=group_TP)
                 if local_rank == recver:
-                    dist.recv(recvbuf, sender, group=group_TP)
+                    dist.recv(recvbuf, sender, group=group_TP)'''
         # torch.cuda.synchronize()
         # dist.barrier()
         dist.all_gather_into_tensor(testbuff, recvbuf, group=group_TP)
