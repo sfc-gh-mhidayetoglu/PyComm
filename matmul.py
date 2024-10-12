@@ -294,6 +294,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     row_group = [map_2D[rank_2D[local_rank][0]][col] for col in range(TP_sqrt)]
     col_group = [map_2D[row][rank_2D[local_rank][1]] for row in range(TP_sqrt)]
+    group_TP_row = dist.new_group(row_group, use_local_synchronization=True)
+    group_TP_col = dist.new_group(col_group, use_local_synchronization=True)
 
     print("myid " + str(my_rank) + " row_group " + str(row_group) + " col_group " + str(col_group))
 
@@ -312,7 +314,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                     dist.recv(recvbuf, sender, group=group_TP)
         # torch.cuda.synchronize()
         # dist.barrier()
-        # dist.all_gather_into_tensor(testbuff, recvbuf, group=group_TP)
+        dist.all_gather_into_tensor(testbuff, recvbuf, group=group_TP_col)
         torch.cuda.synchronize()
         dist.barrier()
         time_end = time.perf_counter()
