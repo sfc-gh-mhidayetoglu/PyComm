@@ -14,7 +14,7 @@ root_rank = 7
 
 # model parameters
 hidden_dim = 16384 * 8
-batch_size = 1024 * 16
+batch_size = 1024 * 8
 num_layers = 126
 mini_batch = 1
 
