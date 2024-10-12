@@ -111,13 +111,13 @@ def matmul_colwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             event_comm_start.record()
             # Reduce partial results into total results in each TP group
             dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
-            # Synchronize
             event_comm_end.record()
+            # double buffering
+            C, B = B, C
+            # Synchronize
             torch.cuda.synchronize()
             time_end = time.perf_counter()
             dist.barrier()
-            # double buffering
-            C, B = B, C
             # record time
             time_comm.append(event_comm_start.elapsed_time(event_comm_end))
             time_matmul.append(event_matmul_start.elapsed_time(event_matmul_end))
@@ -192,13 +192,13 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
             event_matmul_start.record()
             # partial multiplication
             torch.matmul(list_A[layer], B_buff, out=C)
-            # Synchronize
             event_matmul_end.record()
+            # double buffering
+            C, B = B, C
+            # Synchronize
             torch.cuda.synchronize()
             time_end = time.perf_counter()
             dist.barrier()
-            # double buffering
-            C, B = B, C
             # record time
             time_comm.append(event_comm_start.elapsed_time(event_comm_end))
             time_matmul.append(event_matmul_start.elapsed_time(event_matmul_end))
@@ -412,7 +412,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             dist.barrier()
             time_start = time.perf_counter()
             # replay P2P communications
-            event_comm_start.record()
+            event_comm_p2p_start.record()
             if is_self:
                 # self communication
                 B_temp = B.clone()
@@ -420,7 +420,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 # execute P2P communications
                 for comm in my_comm_list:
                     comm[0](comm[1], comm[2], group=comm[3])
-            event_comm_end.record()
+            event_comm_p2p_end.record()
             # gather B_buff
             event_comm_start.record()
             dist.all_gather_into_tensor(B_buff, B_temp, group=group_TP_col)
@@ -437,12 +437,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             event_comm2_p2p_start.record()
             # to be implemented
             event_comm2_p2p_end.record()
+            # double buffering
+            C, B = B, C
             # Synchronize
             torch.cuda.synchronize()
             time_end = time.perf_counter()
             dist.barrier()
-            # double buffering
-            C, B = B, C
             # record time
             time_comm_p2p.append(event_comm_p2p_start.elapsed_time(event_comm_p2p_end))
             time_comm.append(event_comm_start.elapsed_time(event_comm_end))
