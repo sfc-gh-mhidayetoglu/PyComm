@@ -434,9 +434,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             dist.reduce_scatter_tensor(C_temp, C_buff, group=group_TP_row)
             event_comm2_end.record()
             # replay P2P communications
-            event_comm2_start.record()
+            event_comm2_p2p_start.record()
             # to be implemented
-            event_comm2_end.record()
+            event_comm2_p2p_end.record()
             # Synchronize
             torch.cuda.synchronize()
             time_end = time.perf_counter()
