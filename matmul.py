@@ -290,8 +290,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     sendbuf = B # torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
     recvbuf = torch.zeros_like(sendbuf)
-
-    testbuff = torch.cat([sendbuf.clone() for _ in range(TP)])
+    testbuff = torch.cat([recvbuf.clone() for _ in range(TP)])
 
     for layer in range(num_layers):
         torch.cuda.synchronize()
@@ -306,6 +305,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                     dist.send(sendbuf, recver, group=group_TP)
                 if local_rank == recver:
                     dist.recv(recvbuf, sender, group=group_TP)
+        torch.cuda.synchronize()
+        dist.barrier()
         torch.all_gather_into_tensor(testbuff, recvbuf, group=group_TP)
         torch.cuda.synchronize()
         dist.barrier()
