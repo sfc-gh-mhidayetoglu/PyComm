@@ -279,6 +279,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for row in matrix_2:
             print(row)
 
+    for sender in range(TP):
+        for recver in range(TP):
+            if matrix_1[sender][recver] == 1:
+                if my_rank == root_rank:
+                    print(str(sender) + " -> " + str(recver))
+
     return
 
     recvid_B = [i for i in range(rank_2D[1] * TP_sqrt, rank_2D[1] * TP_sqrt + TP_sqrt)]
