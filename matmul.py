@@ -363,7 +363,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             time_start = time.perf_counter()
             # gather B_buff
             event_comm_start.record()
-            # dist.all_gather_into_tensor(B_buff, B, group=group_TP)
+            dist.all_gather_into_tensor(B_buff, B, group=group_TP_col)
             event_comm_end.record()
             # partial multiplication
             event_matmul_start.record()
@@ -371,7 +371,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             event_matmul_end.record()
             # scatter C_buff
             event_comm2_start.record()
-            # dist.reduce_scatter_tensor(C, C_buff, group=group_TP)
+            dist.reduce_scatter_tensor(C, C_buff, group=group_TP_row)
             event_comm2_end.record()
             # Synchronize
             torch.cuda.synchronize()
@@ -407,6 +407,7 @@ B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
 B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
