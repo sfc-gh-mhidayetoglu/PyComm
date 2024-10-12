@@ -264,7 +264,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     for i in range(TP_sqrt):
         for j in range(TP_sqrt):
             map_2D[i][j] = morton_index(i, j)
-
     # Map local_rank to a 2D domain
     rank_2D = [None] * TP
     for i in range(TP_sqrt):
@@ -312,7 +311,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     print("myid " + str(my_rank) + " row_group " + str(row_group) + " col_group " + str(col_group))
 
-    '''for layer in range(num_layers):
+    for layer in range(num_layers):
         torch.cuda.synchronize()
         dist.barrier()
         time_start = time.perf_counter()
@@ -334,7 +333,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         dist.barrier()
         time_end = time.perf_counter()
         if my_rank == root_rank:
-            print("total %.2f us" % ((time_end - time_start) * 1e6))'''
+            print("total %.2f us" % ((time_end - time_start) * 1e6))
+    return
 
     if mini_batch is not None:
         # synchronize
@@ -413,6 +413,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 print("comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm+matmul+comm2 = %.2f overhead %.2f us" % (comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, (comm+matmul+comm2)*1e3, total*1e6-(comm+matmul+comm2)*1e3), end=" ")
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return C
+
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
+exit()
 
 # measure row-wise partitioning
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
