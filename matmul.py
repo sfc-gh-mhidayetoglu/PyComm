@@ -326,8 +326,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     dist.barrier()
     return'''
 
-    print("myid " + str(my_rank) + " commlist " + str(commlist))
-
     B_temp = torch.empty_like(B)
     C_temp = torch.empty_like(C)
     torch.cuda.synchronize()
