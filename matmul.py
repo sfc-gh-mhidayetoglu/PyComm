@@ -466,8 +466,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 FLOPs = 2 * A.size(0) * A.size(1) * B_buff.size(1)
                 Bytes_B = B_buff.element_size() * B_buff.nelement()
                 Bytes_C = C_buff.element_size() * C_buff.nelement()
-
-                print("comm_p2p %2f comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm+matmul+comm2 = %.2f overhead %.2f us" % (comm_p2p*1e3, comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, (comm+matmul+comm2)*1e3, total*1e6-(comm+matmul+comm2)*1e3), end=" ")
+                print("comm_p2p %.2f comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm2_p2p %.2f comm_p2p+comm+matmul+comm2+comm2_p2p = %.2f overhead %.2f us" % (comm_p2p*1e3, comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, comm2_p2p*1e3, (comm_p2p+comm+matmul+comm2+comm2_p2p)*1e3, total*1e6-(comm_p2p+comm+matmul+comm2+comm2_p2p)*1e3), end=" ")
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return C
 
