@@ -279,8 +279,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     if my_rank == root_rank:
         print("myid " + str(my_rank) + " sendlist " + str(sendlist) + " recvlist " + str(recvlist))
 
-    matrix_1 = [[None for _ in range(TP)] for _ in range(TP)]
-    matrix_2 = [[None for _ in range(TP)] for _ in range(TP)]
+    matrix_1 = [["." for _ in range(TP)] for _ in range(TP)]
+    matrix_2 = [["." for _ in range(TP)] for _ in range(TP)]
     for i in range(TP):
         matrix_1[sendlist[i]][i] = 1
         matrix_2[i][recvlist[i]] = 1
