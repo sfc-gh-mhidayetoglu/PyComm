@@ -32,9 +32,10 @@ if my_rank == root_rank:
 
     print("TP: " + str(TP))
     print("DP: " + str(DP))
-    if TP * DP != dist.get_world_size():
-        print("TP * DP != world_size\n")
-        exit()
+
+if TP * DP != dist.get_world_size():
+    print("TP * DP != world_size\n")
+    exit()
 
 # Create group communicators
 ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
@@ -306,7 +307,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     group_TP_row = dist.new_group(row_group, use_local_synchronization=True)
     group_TP_col = dist.new_group(col_group, use_local_synchronization=True)
 
-    print("myid " + str(my_rank) + " row_group " + str(row_group) + " col_group " + str(col_group))
+    if my_rank == root_rank:
+        print("myid " + str(my_rank) + " row_group " + str(row_group) + " col_group " + str(col_group))
 
     ''' p2p_list = list()
     for sender, recver in commlist:
