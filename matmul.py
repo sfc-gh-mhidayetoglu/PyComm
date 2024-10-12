@@ -319,12 +319,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             p2p_list.append(dist.P2POp(dist.isend, sendbuf, recver, group=group_TP))
         if local_rank == recver:
             p2p_list.append(dist.P2POp(dist.irecv, recvbuf, sender, group=group_TP))
-    print("myid " + str(my_rank) + " p2p_list " + str(p2p_list))
-    return 
     reqs = dist.batch_isend_irecv([p2p_list])
     dist.wait_all(reqs)
     torch.cuda.synchronize()
     dist.barrier()
+    return 
 
 
     for layer in range(num_layers):
