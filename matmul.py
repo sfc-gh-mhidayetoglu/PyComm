@@ -300,9 +300,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for comm in commlist:
             print(str(comm[0]) + " -> " + str(comm[1]))
 
-    sendbuf = B # torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
-    recvbuf = torch.zeros_like(sendbuf)
-    testbuff = torch.cat([recvbuf.clone() for _ in range(TP)])
 
     row_group = [map_2D[rank_2D[local_rank][0]][col] for col in range(TP_sqrt)]
     col_group = [map_2D[row][rank_2D[local_rank][1]] for row in range(TP_sqrt)]
@@ -311,7 +308,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     print("myid " + str(my_rank) + " row_group " + str(row_group) + " col_group " + str(col_group))
 
-    p2p_list = list()
+    ''' p2p_list = list()
     for sender, recver in commlist:
         if sender == recver:
             continue
@@ -327,27 +324,28 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         req.wait()
     torch.cuda.synchronize()
     dist.barrier()
-    return 
+    return''' 
 
-
+    B_temp = torch.empty_like(B)
+    C_temp = torch.empty_like(C)
+    torch.cuda.synchronize()
     for layer in range(num_layers):
-        torch.cuda.synchronize()
         dist.barrier()
         time_start = time.perf_counter()
         for sender, recver in commlist:
             if sender == recver:
                 if local_rank == sender:
-                    recvbuf = sendbuf.clone()
+                    B_temp = B.clone()
             else:
                 if local_rank == sender:
-                    dist.send(sendbuf, recver, group=group_TP)
+                    dist.send(B, recver, group=group_TP)
                 if local_rank == recver:
-                    dist.recv(recvbuf, sender, group=group_TP)
+                    dist.recv(B_temp, sender, group=group_TP)
         # torch.cuda.synchronize()
         # dist.barrier()
-        # dist.all_gather_into_tensor(B_buff, recvbuf, group=group_TP_col)
-        # torch.matmul(list_A[layer], B_buff, out=C_buff)
-        # dist.reduce_scatter_tensor(C, C_buff, group=group_TP_row)
+        dist.all_gather_into_tensor(B_buff,B_temp, group=group_TP_col)
+        torch.matmul(list_A[layer], B_buff, out=C_buff)
+        dist.reduce_scatter_tensor(C_temp, C_buff, group=group_TP_row)
         torch.cuda.synchronize()
         dist.barrier()
         time_end = time.perf_counter()
