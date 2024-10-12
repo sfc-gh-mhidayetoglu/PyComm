@@ -280,9 +280,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for row in matrix_1:
             print(" ".join(map(str, row)))
     commlist = list()
-
-    sendbuf = torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
-    recvbuf = torch.zeros_like(sendbuf)
     for sender in range(TP):
         for recver in range(TP):
             if matrix_1[recver][sender] == 1:
@@ -291,8 +288,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for comm in commlist:
             print(str(comm[0]) + " -> " + str(comm[1]))
 
-    numiter = 100
-    for iter in range(numiter):
+    sendbuf = B # torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
+    recvbuf = torch.zeros_like(sendbuf)
+    for layer in range(num_layers):
+        torch.cuda.synchronize()
         dist.barrier()
         time_start = time.perf_counter()
         for sender, recver in commlist:
@@ -304,6 +303,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                     dist.send(sendbuf, recver, group=group_TP)
                 if local_rank == recver:
                     dist.recv(recvbuf, sender, group=group_TP)
+        dist.all_gather_into_tensor(B_buff, recvbuf, group=group_TP)
         torch.cuda.synchronize()
         dist.barrier()
         time_end = time.perf_counter()
