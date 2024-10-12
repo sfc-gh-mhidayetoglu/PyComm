@@ -328,6 +328,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     dist.barrier()
     return'''
 
+    # P2P communication buffers
+    B_temp = torch.empty_like(B)
+    C_temp = torch.empty_like(C)
+    # record P2P communications within TP group
     is_self = False
     my_comm_list = []
     for sender, recver in commlist:
@@ -340,8 +344,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             if local_rank == recver:
                 my_comm_list.append((dist.recv, B_temp, sender, group_TP))
 
-    B_temp = torch.empty_like(B)
-    C_temp = torch.empty_like(C)
     torch.cuda.synchronize()
     for layer in range(num_layers):
         dist.barrier()
@@ -355,6 +357,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                     dist.send(B, recver, group=group_TP)
                 if local_rank == recver:
                     dist.recv(B_temp, sender, group=group_TP)'''
+        # replay P2P communications
         if is_self:
             B_temp = B.clone()
         else:
@@ -370,7 +373,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         time_end = time.perf_counter()
         if my_rank == root_rank:
             print("total %.2f us" % ((time_end - time_start) * 1e6))
-    return
 
     if mini_batch is not None:
         # synchronize
