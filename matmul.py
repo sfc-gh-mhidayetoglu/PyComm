@@ -258,19 +258,26 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for j in range(TP_sqrt):
             rank_2D[map_2D[i][j]] = (i, j)
 
-    matrix = [[0 for _ in range(TP)] for _ in range(TP)]
     if my_rank == root_rank:
         print("myid " + str(my_rank) + "\nrank_2D " + str(rank_2D) + "\nmap_2D " + str(map_2D))
-        print("matrix ")
-        for row in matrix:
-            print(row)
 
     sendlist = [map_2D[rank % TP_sqrt][rank // TP_sqrt] for rank in range(TP)]
     recvlist = [rank_2D[rank][1] * TP_sqrt + rank_2D[rank][0] for rank in range(TP)]
-
     if my_rank == root_rank:
         print("myid " + str(my_rank) + " sendlist " + str(sendlist) + " recvlist " + str(recvlist))
 
+    matrix_1 = [[0 for _ in range(TP)] for _ in range(TP)]
+    matrix_2 = [[0 for _ in range(TP)] for _ in range(TP)]
+    for i in range(TP):
+        matrix_1[i][sendlist[i]] = 1
+        matrix_2[recvlist[i]][i] = 1
+    if my_rank == root_rank:
+        print("matrix 1")
+        for row in matrix_1:
+            print(row)
+        print("matrix 2")
+        for row in matrix_2:
+            print(row)
 
     return
 
