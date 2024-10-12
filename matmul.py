@@ -313,6 +313,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
 
     p2p_list = list()
     for sender, recver in commlist:
+        if sender != recver:
+            continue
         if local_rank == sender:
             p2p_list.append(dist.P2POp(dist.isend, sendbuf, recver, group=group_TP))
         if local_rank == recver:
