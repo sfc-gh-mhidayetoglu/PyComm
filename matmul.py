@@ -280,12 +280,23 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for row in matrix_1:
             print(" ".join(map(str, row)))
 
+    sendbuf = torch.ones((10, 10), dtype=torch.bfloat16, device=my_device)
+    recvbuf = torch.zeros_like(sendbuf)
     dist.barrier()
     for sender in range(TP):
         for recver in range(TP):
             if matrix_1[recver][sender] == 1:
+                if sender == recver:
+                    if local_rank == sender:
+                        recvbuf = sendbuf.clone()
+                else:
+                    if local_rank == sender:
+                        dist.send(sendbuf, recver, group=group_TP)
+                    if local_rank == recver:
+                        dist.recv(recvbuf, sender, group=group_TP)
                 if my_rank == root_rank:
                     print(str(sender) + " -> " + str(recver))
+    dist.barrier()
 
     return
 
