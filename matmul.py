@@ -253,7 +253,8 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     # map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
     # map_2D = [[0, 1, 12, 5], [11, 2, 7, 6], [4, 13, 8, 9], [15, 14, 3, 10]] # arbitrary order
     # map_2D = [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]] # row-wise order
-    map_2D = [[0, 4, 8, 12], [1, 5, 9, 13], [2, 6, 10, 14], [3, 7, 11, 15]] # column-wise order
+    # map_2D = [[0, 4, 8, 12], [1, 5, 9, 13], [2, 6, 10, 14], [3, 7, 11, 15]] # column-wise order
+    map_2D = [[hilbert_curve_index(TP_sqrt, x, y) for x in range(TP_sqrt)] for y in range(TP_sqrt)]
     # Map local_rank to a 2D domain
     rank_2D = [None] * TP
     for i in range(TP_sqrt):
