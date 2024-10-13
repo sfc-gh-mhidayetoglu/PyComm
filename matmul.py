@@ -372,6 +372,18 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 my_comm_list.append((dist.send, B, recver, group_TP))
             if local_rank == recver:
                 my_comm_list.append((dist.recv, B_temp, sender, group_TP))
+    # record P2P communications within TP group
+    is_self_C = False
+    my_comm_list_C = []
+    for sender, recver in comm_list_C:
+        if sender == recver:
+            if local_rank == sender:
+                is_self_C = True
+        else:
+            if local_rank == sender:
+                my_comm_list_C.append((dist.send, C_temp, recver, group_TP))
+            if local_rank == recver:
+                my_comm_list_C.append((dist.recv, C, sender, group_TP))
 
     '''torch.cuda.synchronize()
     for layer in range(num_layers):
@@ -411,7 +423,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                     comm[0](comm[1], comm[2], group=comm[3])
             dist.all_gather_into_tensor(B_buff, B, group=group_TP_col)
             torch.matmul(list_A[layer], B_buff, out=C_buff)
-            dist.reduce_scatter_tensor(C, C_buff, group=group_TP_row)
+            dist.reduce_scatter_tensor(C_temp, C_buff, group=group_TP_row)
+            if is_self_C:
+                C = C_temp.clone()
+            else:
+                for comm in my_comm_list_C:
+                    comm[0](comm[1], comm[2], group=comm[3])
             C, B = B, C
         # synchronize
         event_end.record()
