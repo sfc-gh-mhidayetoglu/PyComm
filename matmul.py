@@ -289,8 +289,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     recvlist_C = [map_2D[rank % TP_sqrt][rank // TP_sqrt] for rank in range(TP)]
 
     if my_rank == root_rank:
-        print("myid " + str(my_rank) + "\nsendlist_B " + str(sendlist) + " recvlist_B " + str(recvlist))
-        print("myid " + str(my_rank) + "\nsendlist_C " + str(sendlist_C) + " recvlist_C " + str(recvlist_C))
+        print("myid " + str(my_rank) + "\nsendlist_B " + str(sendlist) + "\nrecvlist_B " + str(recvlist) + "\nsendlist_C " + str(sendlist_C) + "\nrecvlist_C " + str(recvlist_C))
 
     matrix_1 = [["." for _ in range(TP)] for _ in range(TP)]
     matrix_2 = [["." for _ in range(TP)] for _ in range(TP)]
