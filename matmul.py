@@ -322,6 +322,14 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for comm in commlist:
             print(str(comm[0]) + " -> " + str(comm[1]))
 
+    comm_list_C = list()
+    for sender in range(TP):
+        for recver in range(TP):
+            if matrix_C[recver][sender] == 1:
+                comm_list_C.append((sender, recver))
+    if my_rank == root_rank:
+        for comm in comm_list_C:
+            print(str(comm[0]) + " -> " + str(comm[1]))
 
     row_group = [map_2D[rank_2D[local_rank][0]][col] for col in range(TP_sqrt)]
     col_group = [map_2D[row][rank_2D[local_rank][1]] for row in range(TP_sqrt)]
