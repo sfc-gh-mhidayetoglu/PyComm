@@ -477,7 +477,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             event_comm2_end.record()
             # replay P2P communications
             event_comm2_p2p_start.record()
-            # to be implemented
+            if is_self_C:
+                C = C_temp.clone()
+            else:
+                for comm in my_comm_list_C:
+                    comm[0](comm[1], comm[2], group=comm[3])
             event_comm2_p2p_end.record()
             # double buffering
             C, B = B, C
