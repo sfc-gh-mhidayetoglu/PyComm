@@ -304,6 +304,13 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         print("matrix_1")
         for row in matrix_1:
             print(" ".join(map(str, row)))
+    matrix_C = [["." for _ in range(TP)] for _ in range(TP)]
+    for i in range(TP):
+        matrix_C[sendlist_C[i]][i] = 1
+    if my_rank == root_rank:
+        print("matrix_C")
+        for row in matrix_C:
+            print(" ".join(map(str, row)))
 
     # Create global communication list
     commlist = list()
