@@ -220,21 +220,6 @@ def matmul_rowwise(hidden_dim = 16384, batch_size = 1024, num_layers = 118, TP =
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     return B
 
-
-def hilbert_curve_index(n, x, y):
-    rx, ry, s, d = 0, 0, 1, 0
-    while s < n:
-        rx = (x & s) > 0
-        ry = (y & s) > 0
-        d += s * s * ((3 * rx) ^ ry)
-        if ry == 0:
-            if rx == 1:
-                x = n - 1 - x
-                y = n - 1 - y
-            x, y = y, x
-        s <<= 1
-    return d
-
 def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP = 2, mini_batch = None):
     # allocate memory
     TP_sqrt = math.isqrt(TP)
@@ -265,6 +250,20 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for i in range(max(x.bit_length(), y.bit_length())):
             answer |= ((x >> i) & 1) << (2 * i + 1) | ((y >> i) & 1) << (2 * i)
         return answer
+    def hilbert_curve_index(n, x, y):
+        rx, ry, s, d = 0, 0, 1, 0
+        while s < n:
+            rx = (x & s) > 0
+            ry = (y & s) > 0
+            d += s * s * ((3 * rx) ^ ry)
+            if ry == 0:
+                if rx == 1:
+                    x = n - 1 - x
+                    y = n - 1 - y
+                x, y = y, x
+            s <<= 1
+        return d
+
 
     map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
     for i in range(TP_sqrt):
