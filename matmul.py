@@ -252,15 +252,18 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         return answer
     
     def hilbert_curve_index(n, x, y):
-        rx, ry, s, d = 0, 0, 0, 0
-        for s in range(n.bit_length() - 1, -1, -1):
-            rx = (x >> s) & 1
-            ry = (y >> s) & 1
-            d += (1 << (2 * s)) * ((3 * rx) ^ ry)
+        d = 0
+        s = n // 2
+        while s > 0:
+            rx = (x & s) > 0
+            ry = (y & s) > 0
+            d += s * s * ((3 * rx) ^ ry)
             if ry == 0:
                 if rx == 1:
-                    x, y = n - 1 - x, n - 1 - y
+                    x = n - 1 - x
+                    y = n - 1 - y
                 x, y = y, x
+            s //= 2
         return d
 
     map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
