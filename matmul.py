@@ -445,9 +445,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             # gather B_buff
             event_comm_start.record()
             if layer % 2 == 0: # if layer is even
-                dist.all_gather_into_tensor(B_buff, B_temp, group=group_TP_col)
+                dist.all_gather_into_tensor(B_buff, B_, group=group_TP_col)
             if layer % 2 == 1: # if layer is odd
-                dist.all_gather_into_tensor(B_buff, B_temp, group=group_TP_row)
+                dist.all_gather_into_tensor(B_buff, B_, group=group_TP_row)
             event_comm_end.record()
             # partial multiplication
             event_matmul_start.record()
