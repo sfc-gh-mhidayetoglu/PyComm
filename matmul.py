@@ -443,10 +443,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             time_start = time.perf_counter()
             # gather B_buff
             event_comm_start.record()
-            if layer % 2 == 0: # if layer is even
-                dist.all_gather_into_tensor(B_buff, B_, group=group_TP_col)
-            if layer % 2 == 1: # if layer is odd
-                dist.all_gather_into_tensor(B_buff, B_, group=group_TP_row)
+            # if layer % 2 == 0: # if layer is even
+            #     dist.all_gather_into_tensor(B_buff, B_, group=group_TP_col)
+            # if layer % 2 == 1: # if layer is odd
+            #     dist.all_gather_into_tensor(B_buff, B_, group=group_TP_row)
             event_comm_end.record()
             # partial multiplication
             event_matmul_start.record()
@@ -455,9 +455,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             # scatter C_buff
             event_comm2_start.record()
             if layer % 2 == 0: # layer is even
-                dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_row)
+                dist.all_reduce(B_buff, C_buff, group=group_TP_row)
             else: # layer is odd
-                dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
+                dist.all_reduce(B_buff, C_buff, group=group_TP_col)
             event_comm2_end.record()
             # Synchronize
             torch.cuda.synchronize()
@@ -488,6 +488,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     torch.cuda.synchronize()
     dist.barrier()
     time_perf = time.perf_counter()
+    if num_layers % 2 == 0: # layer is even
+        dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_row)
+    else: # layer is odd
+        dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
     if num_layers % 2 == 1: # if #layers is odd
         for comm in my_comm_list_C:
             if comm is None:
