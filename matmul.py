@@ -418,9 +418,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for layer in range(num_layers):
             torch.matmul(list_A[layer], B_buff, out=C_buff)
             if layer % 2 == 0: # layer is even
-                dist.all_reduce(B_buff, C_buff, group=group_TP_row)
+                dist.all_reduce(C_buff, group=group_TP_row)
             else: # layer is odd
-                dist.all_reduce(B_buff, C_buff, group=group_TP_col)
+                dist.all_reduce(C_buff, group=group_TP_col)
+            # double buffer
+            B_buff, C_buff = C_buff, B_buff
         event_end.record()
         torch.cuda.synchronize()
         dist.barrier()
@@ -455,10 +457,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             # scatter C_buff
             event_comm2_start.record()
             if layer % 2 == 0: # layer is even
-                dist.all_reduce(B_buff, C_buff, group=group_TP_row)
+                dist.all_reduce(C_buff, group=group_TP_row)
             else: # layer is odd
-                dist.all_reduce(B_buff, C_buff, group=group_TP_col)
+                dist.all_reduce(C_buff, group=group_TP_col)
             event_comm2_end.record()
+            #double buffer
+            B_buff, C_buff = C_buff, B_buff
             # Synchronize
             torch.cuda.synchronize()
             time_end = time.perf_counter()
@@ -489,9 +493,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     dist.barrier()
     time_perf = time.perf_counter()
     if num_layers % 2 == 0: # layer is even
-        dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_row)
+        dist.reduce_scatter_tensor(B_, B_buff, group=group_TP_row)
     else: # layer is odd
-        dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
+        dist.reduce_scatter_tensor(B_, B_buff, group=group_TP_col)
     if num_layers % 2 == 1: # if #layers is odd
         for comm in my_comm_list_C:
             if comm is None:
