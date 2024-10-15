@@ -237,7 +237,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     A = torch.randn(hidden_dim//TP_sqrt, hidden_dim//TP_sqrt, dtype=torch.bfloat16, device=my_device) # root layer (n/sqrt(TP), n/sqrt(TP))
     list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n/sqrt(TP), n/sqrt(TP))
     B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
-    B_ = torch.ones_libe(B) # (n/TP, b/DP)
+    B_ = torch.ones_like(B) # (n/TP, b/DP)
     B_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
     C_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
 
