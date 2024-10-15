@@ -237,7 +237,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     A = torch.randn(hidden_dim//TP_sqrt, hidden_dim//TP_sqrt, dtype=torch.bfloat16, device=my_device) # root layer (n/sqrt(TP), n/sqrt(TP))
     list_A = [torch.ones_like(A) / hidden_dim for _ in range(num_layers)] # l x (n/sqrt(TP), n/sqrt(TP))
     B = torch.ones(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
-    C = torch.empty(hidden_dim//TP, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/TP, b/DP)
+    B_ = torch.ones_libe(B) # (n/TP, b/DP)
     B_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
     C_buff = torch.empty(hidden_dim//TP_sqrt, batch_size//DP, dtype=torch.bfloat16, device=my_device) # (n/sqrt(TP), b/DP)
 
@@ -246,12 +246,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         print("A " + str(A.size()) + " size " + str(A.element_size() * A.nelement() / 1e6) + " MB")
         print("list_A " + str(len(list_A)) + " size " + str(sum([A.element_size() * A.nelement() for A in list_A]) / 1e6) + " MB")
         print("B " + str(B.size()) + " size " + str(B.element_size() * B.nelement() / 1e6) + " MB")
-        print("C " + str(C.size()) + " size " + str(C.element_size() * C.nelement() / 1e6) + " MB")
+        print("B_ " + str(B_.size()) + " size " + str(B_.element_size() * B_.nelement() / 1e6) + " MB")
         print("B_buff " + str(B_buff.size()) + " size " + str(B_buff.element_size() * B_buff.nelement() / 1e6) + " MB")
         print("C_buff " + str(C_buff.size()) + " size " + str(C_buff.element_size() * C_buff.nelement() / 1e6) + " MB")
         print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e6) + " MB")
 
-    # map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
     # map_2D = [[0, 1, 12, 5], [11, 2, 7, 6], [4, 13, 8, 9], [15, 14, 3, 10]] # arbitrary order
     # map_2D = [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]] # row-wise order
     # map_2D = [[0, 4, 8, 12], [1, 5, 9, 13], [2, 6, 10, 14], [3, 7, 11, 15]] # column-wise order
@@ -302,6 +301,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         print("matrix_C")
         for row in matrix_C:
             print(" ".join(map(str, row)))
+    return
 
     # Create global communication list
     commlist = list()
@@ -348,9 +348,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     dist.barrier()
     return'''
 
-    # P2P communication buffers
-    B_temp = torch.empty_like(B)
-    C_temp = torch.empty_like(C)
     # record P2P communications within TP group
     is_self = False
     my_comm_list = []
@@ -362,7 +359,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             if local_rank == sender:
                 my_comm_list.append((dist.send, B, recver, group_TP))
             if local_rank == recver:
-                my_comm_list.append((dist.recv, B_temp, sender, group_TP))
+                my_comm_list.append((dist.recv, B_, sender, group_TP))
     # record P2P communications within TP group
     is_self_C = False
     my_comm_list_C = []
@@ -372,9 +369,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 is_self_C = True
         else:
             if local_rank == sender:
-                my_comm_list_C.append((dist.send, C_temp, recver, group_TP))
+                my_comm_list_C.append((dist.send, B_, recver, group_TP))
             if local_rank == recver:
-                my_comm_list_C.append((dist.recv, C, sender, group_TP))
+                my_comm_list_C.append((dist.recv, B, sender, group_TP))
 
     '''torch.cuda.synchronize()
     for layer in range(num_layers):
@@ -405,23 +402,33 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         dist.barrier()
         time_perf = time.perf_counter()
         event_start.record()
+        # reorder B -> B_
+        if is_self:
+            B_ = B.clone() 
+        else:
+            for comm in my_comm_list:
+                comm[0](comm[1], comm[2], group=comm[3])
         # iterate over layers
         for layer in range(num_layers):
-            if is_self:
-                B_temp = B.clone() 
-            else:
-                for comm in my_comm_list:
-                    comm[0](comm[1], comm[2], group=comm[3])
-            dist.all_gather_into_tensor(B_buff, B, group=group_TP_col)
+            dist.all_gather_into_tensor(B_buff, B_, group=group_TP_col)
             torch.matmul(list_A[layer], B_buff, out=C_buff)
-            dist.reduce_scatter_tensor(C_temp, C_buff, group=group_TP_row)
-            if is_self_C:
-                C = C_temp.clone()
+            dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_row)
+            if layer < num_layers - 1:
+                B_, B = B, B_
+                # reorder B_
+            # if is_self_C:
+            #     C = C_temp.clone()
+            # else:
+            #     for comm in my_comm_list_C:
+            #         comm[0](comm[1], comm[2], group=comm[3])
             else:
-                for comm in my_comm_list_C:
-                    comm[0](comm[1], comm[2], group=comm[3])
-            C, B = B, C
-        # synchronize
+                # reorder B_ -> B
+                if is_self_C:
+                    B = B_.clone()
+                else:
+                    for comm in my_comm_list_C:
+                        comm[0](comm[1], comm[2], group=comm[3])
+
         event_end.record()
         torch.cuda.synchronize()
         dist.barrier()
