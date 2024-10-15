@@ -347,24 +347,22 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     return'''
 
     # record P2P communications within TP group
-    is_self = False
     my_comm_list = []
     for sender, recver in commlist:
         if sender == recver:
             if local_rank == sender:
-                is_self = True
+                my_comm_list.append(None)
         else:
             if local_rank == sender:
                 my_comm_list.append((dist.send, B, recver, group_TP))
             if local_rank == recver:
                 my_comm_list.append((dist.recv, B_, sender, group_TP))
     # record P2P communications within TP group
-    is_self_C = False
     my_comm_list_C = []
     for sender, recver in comm_list_C:
         if sender == recver:
             if local_rank == sender:
-                is_self_C = True
+                my_comm_list_C.append(None)
         else:
             if local_rank == sender:
                 my_comm_list_C.append((dist.send, B_, recver, group_TP))
@@ -418,14 +416,13 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
         # reorder
         if num_layers % 2 == 1: # if #layers is odd
-            if is_self_C:
-                B = B_.clone()
-            else:
-                for comm in my_comm_list_C:
+            for comm in my_comm_list_C:
+                if comm is None:
+                    B = B_.clone()
+                else:
                     comm[0](comm[1], comm[2], group=comm[3])
         else: # if #layers is even
-            if is_self:
-                B = B_.clone()
+            B = B_.clone()
 
         event_end.record()
         torch.cuda.synchronize()
@@ -510,7 +507,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 Bytes_C = C_buff.element_size() * C_buff.nelement()
                 print("comm_p2p %.2f comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm2_p2p %.2f comm_p2p+comm+matmul+comm2+comm2_p2p = %.2f overhead %.2f us" % (comm_p2p*1e3, comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, comm2_p2p*1e3, (comm_p2p+comm+matmul+comm2+comm2_p2p)*1e3, total*1e6-(comm_p2p+comm+matmul+comm2+comm2_p2p)*1e3), end=" ")
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
-    return C
+    return B
 
 # measure row-wise partitioning
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
