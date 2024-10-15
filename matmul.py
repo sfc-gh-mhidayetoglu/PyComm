@@ -300,7 +300,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         print("matrix_C")
         for row in matrix_C:
             print(" ".join(map(str, row)))
-    return
+    return B
 
     # Create global communication list
     commlist = list()
