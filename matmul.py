@@ -392,18 +392,21 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         if my_rank == root_rank:
             print("total %.2f us" % ((time_end - time_start) * 1e6))'''
 
+    # synchronize
+    torch.cuda.synchronize()
+    dist.barrier()
+    # reorder B
+    for comm in my_comm_list:
+        if comm is None:
+            B_ = B.clone()
+        else:
+            comm[0](comm[1], comm[2], group=comm[3])
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
         dist.barrier()
         time_perf = time.perf_counter()
         event_start.record()
-        # reorder B
-        for comm in my_comm_list:
-            if comm is None:
-                B_ = B.clone()
-            else:
-                comm[0](comm[1], comm[2], group=comm[3])
         # iterate over layers
         for layer in range(num_layers):
             if layer % 2 == 0: # if layer is even
@@ -414,16 +417,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 dist.all_gather_into_tensor(B_buff, B_, group=group_TP_row)
                 torch.matmul(list_A[layer], B_buff, out=C_buff)
                 dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
-        # reorder
-        if num_layers % 2 == 1: # if #layers is odd
-            for comm in my_comm_list_C:
-                if comm is None:
-                    B = B_.clone()
-                else:
-                    comm[0](comm[1], comm[2], group=comm[3])
-        else: # if #layers is even
-            B = B_.clone()
-
         event_end.record()
         torch.cuda.synchronize()
         dist.barrier()
@@ -448,17 +441,13 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             time_start = time.perf_counter()
             # replay P2P communications
             event_comm_p2p_start.record()
-            if is_self:
-                # self communication
-                B_temp = B.clone()
-            else:
-                # execute P2P communications
-                for comm in my_comm_list:
-                    comm[0](comm[1], comm[2], group=comm[3])
             event_comm_p2p_end.record()
             # gather B_buff
             event_comm_start.record()
-            dist.all_gather_into_tensor(B_buff, B_temp, group=group_TP_col)
+            if layer % 2 == 0: # if layer is even
+                dist.all_gather_into_tensor(B_buff, B_temp, group=group_TP_col)
+            if layer % 2 == 1: # if layer is odd
+                dist.all_gather_into_tensor(B_buff, B_temp, group=group_TP_row)
             event_comm_end.record()
             # partial multiplication
             event_matmul_start.record()
@@ -466,18 +455,14 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             event_matmul_end.record()
             # scatter C_buff
             event_comm2_start.record()
-            dist.reduce_scatter_tensor(C_temp, C_buff, group=group_TP_row)
+            if layer % 2 == 0: # layer is even
+                dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_row)
+            else: # layer is odd
+                dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
             event_comm2_end.record()
             # replay P2P communications
             event_comm2_p2p_start.record()
-            if is_self_C:
-                C = C_temp.clone()
-            else:
-                for comm in my_comm_list_C:
-                    comm[0](comm[1], comm[2], group=comm[3])
             event_comm2_p2p_end.record()
-            # double buffering
-            C, B = B, C
             # Synchronize
             torch.cuda.synchronize()
             time_end = time.perf_counter()
@@ -507,6 +492,16 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 Bytes_C = C_buff.element_size() * C_buff.nelement()
                 print("comm_p2p %.2f comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm2_p2p %.2f comm_p2p+comm+matmul+comm2+comm2_p2p = %.2f overhead %.2f us" % (comm_p2p*1e3, comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, comm2_p2p*1e3, (comm_p2p+comm+matmul+comm2+comm2_p2p)*1e3, total*1e6-(comm_p2p+comm+matmul+comm2+comm2_p2p)*1e3), end=" ")
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
+    # reorder
+    if num_layers % 2 == 1: # if #layers is odd
+        for comm in my_comm_list_C:
+            if comm is None:
+                B = B_.clone()
+            else:
+                comm[0](comm[1], comm[2], group=comm[3])
+    else: # if #layers is even
+        B = B_.clone()
+
     return B
 
 # measure row-wise partitioning
@@ -514,7 +509,7 @@ B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
-# B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
+B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
 B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
