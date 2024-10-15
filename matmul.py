@@ -320,8 +320,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         for comm in comm_list_C:
             print(str(comm[0]) + " -> " + str(comm[1]))
 
-    return B
-
     row_group = [map_2D[rank_2D[local_rank][0]][col] for col in range(TP_sqrt)]
     col_group = [map_2D[row][rank_2D[local_rank][1]] for row in range(TP_sqrt)]
     group_TP_row = dist.new_group(row_group, use_local_synchronization=True)
@@ -402,7 +400,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         dist.barrier()
         time_perf = time.perf_counter()
         event_start.record()
-        # reorder B -> B_
+        # reorder B
         if is_self:
             B_ = B.clone() 
         else:
@@ -410,24 +408,24 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 comm[0](comm[1], comm[2], group=comm[3])
         # iterate over layers
         for layer in range(num_layers):
-            dist.all_gather_into_tensor(B_buff, B_, group=group_TP_col)
-            torch.matmul(list_A[layer], B_buff, out=C_buff)
-            dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_row)
-            if layer < num_layers - 1:
-                B_, B = B, B_
-                # reorder B_
-            # if is_self_C:
-            #     C = C_temp.clone()
-            # else:
-            #     for comm in my_comm_list_C:
-            #         comm[0](comm[1], comm[2], group=comm[3])
+            if layer % 2 == 0: # if layer is even
+                dist.all_gather_into_tensor(B_buff, B_, group=group_TP_col)
+                torch.matmul(list_A[layer], B_buff, out=C_buff)
+                dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_row)
+            else: # if layer is odd
+                dist.all_gather_into_tensor(B_buff, B_, group=group_TP_row)
+                torch.matmul(list_A[layer], B_buff, out=C_buff)
+                dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
+        # reorder
+        if num_layers % 2 == 1: # if #layers is odd
+            if is_self_C:
+                B = B_.clone()
             else:
-                # reorder B_ -> B
-                if is_self_C:
-                    B = B_.clone()
-                else:
-                    for comm in my_comm_list_C:
-                        comm[0](comm[1], comm[2], group=comm[3])
+                for comm in my_comm_list_C:
+                    comm[0](comm[1], comm[2], group=comm[3])
+        else: # if #layers is even
+            if is_self:
+                B = B_.clone()
 
         event_end.record()
         torch.cuda.synchronize()
@@ -519,7 +517,7 @@ B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_colwise = matmul_colwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP)
 B_rowwise = matmul_rowwise(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
-B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
+# B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP)
 B_2D = matmul_2D(hidden_dim, batch_size, num_layers, TP, DP, mini_batch)
 
 if B_colwise.eq(torch.ones_like(B_colwise)).all():
