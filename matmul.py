@@ -27,16 +27,15 @@ def morton_index(x, y):
     for i in range(max(x.bit_length(), y.bit_length())):
         answer |= ((x >> i) & 1) << (2 * i + 1) | ((y >> i) & 1) << (2 * i)
     return answer
-    
 def hilbert_curve_index(n, x, y):
     d = 0
     s = n // 2
     while s > 0:
         rx = (x & s) > 0
         ry = (y & s) > 0
-        d += s * s * ((3 * rx) ^ ry)
-        if ry == 0:
-            if rx == 1:
+        d += s * s * ((3 * ry) ^ rx)
+        if rx == 0:
+            if ry == 1:
                 x = n - 1 - x
                 y = n - 1 - y
             x, y = y, x
