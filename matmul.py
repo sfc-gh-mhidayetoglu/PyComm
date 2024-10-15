@@ -257,9 +257,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
     for i in range(TP_sqrt):
         for j in range(TP_sqrt):
-            # map_2D[i][j] = i * TP_sqrt + j # Cartesian (row-wise)
+            map_2D[i][j] = i * TP_sqrt + j # Cartesian (row-wise)
             # map_2D[i][j] = j * TP_sqrt + i # Cartesian (column-wise)
-            map_2D[i][j] = hilbert_curve_index(TP_sqrt, i, j) # Hilbert curve
+            # map_2D[i][j] = hilbert_curve_index(TP_sqrt, i, j) # Hilbert curve
             # map_2D[i][j] = morton_index(i, j) # Morton (Z-order) curve
 
     # Map local_rank to a 2D domain
@@ -395,12 +395,18 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     # synchronize
     torch.cuda.synchronize()
     dist.barrier()
+    time_perf = time.perf_counter()
     # reorder B
     for comm in my_comm_list:
         if comm is None:
             B_ = B.clone()
         else:
             comm[0](comm[1], comm[2], group=comm[3])
+    torch.cuda.synchronize()
+    dist.barrier()
+    time_perf = time.perf_counter() - time_perf
+    if my_rank == root_rank:
+        print("2D reorder %.2f us" % (time_perf * 1e6))
     if mini_batch is not None:
         # synchronize
         torch.cuda.synchronize()
@@ -427,11 +433,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             print("2D total %.2f event %.2f ms" % (time_perf*1e3, time_event))
             print("2D per-iter perf %.2f event %.2f us\n" % (time_perf/num_layers*1e6, time_event/num_layers*1e3))
     else:
-        time_comm_p2p = []
         time_comm = []
         time_matmul = []
         time_comm2 = []
-        time_comm2_p2p = []
         time_total = []
         # iterate over layers
         for layer in range(num_layers):
@@ -439,9 +443,6 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             torch.cuda.synchronize()
             dist.barrier()
             time_start = time.perf_counter()
-            # replay P2P communications
-            event_comm_p2p_start.record()
-            event_comm_p2p_end.record()
             # gather B_buff
             event_comm_start.record()
             if layer % 2 == 0: # if layer is even
@@ -460,27 +461,20 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             else: # layer is odd
                 dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
             event_comm2_end.record()
-            # replay P2P communications
-            event_comm2_p2p_start.record()
-            event_comm2_p2p_end.record()
             # Synchronize
             torch.cuda.synchronize()
             time_end = time.perf_counter()
             dist.barrier()
             # record time
-            time_comm_p2p.append(event_comm_p2p_start.elapsed_time(event_comm_p2p_end))
             time_comm.append(event_comm_start.elapsed_time(event_comm_end))
             time_matmul.append(event_matmul_start.elapsed_time(event_matmul_end))
             time_comm2.append(event_comm2_start.elapsed_time(event_comm2_end))
-            time_comm2_p2p.append(event_comm2_p2p_start.elapsed_time(event_comm2_p2p_end))
             time_total.append(time_end - time_start)
         # report time
         for layer in range(num_layers):
-            comm_p2p = time_comm_p2p[layer] # in microseconds
             comm = time_comm[layer] # in microseconds 
             matmul = time_matmul[layer] # in microseconds
             comm2 = time_comm2[layer] # in microseconds
-            comm2_p2p = time_comm2_p2p[layer] # in microseconds
             total = time_total[layer] # in seconds
             max_ = torch.tensor(total, device=my_device) # in seconds
             dist.all_reduce(max_, op=dist.ReduceOp.MAX)
@@ -490,9 +484,12 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 FLOPs = 2 * A.size(0) * A.size(1) * B_buff.size(1)
                 Bytes_B = B_buff.element_size() * B_buff.nelement()
                 Bytes_C = C_buff.element_size() * C_buff.nelement()
-                print("comm_p2p %.2f comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm2_p2p %.2f comm_p2p+comm+matmul+comm2+comm2_p2p = %.2f overhead %.2f us" % (comm_p2p*1e3, comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, comm2_p2p*1e3, (comm_p2p+comm+matmul+comm2+comm2_p2p)*1e3, total*1e6-(comm_p2p+comm+matmul+comm2+comm2_p2p)*1e3), end=" ")
+                print("comm %.2f (%.2f GB/s) matmul %.2f (%.2f TFLOPS) comm2 %.2f (%.2f GB/s) comm+matmul+comm2 = %.2f overhead %.2f us" % (comm*1e3, Bytes_B / (comm / 1e3) / 1e9, matmul*1e3, FLOPs / (matmul / 1e3) / 1e12, comm2*1e3, Bytes_C / (comm2 / 1e3) / 1e9, (comm+matmul+comm2)*1e3, total*1e6-(comm+matmul+comm2)*1e3), end=" ")
                 print("total %.2f max %.2f us" % (total * 1e6, max_ * 1e6))
     # reorder
+    torch.cuda.synchronize()
+    dist.barrier()
+    time_perf = time.perf_counter()
     if num_layers % 2 == 1: # if #layers is odd
         for comm in my_comm_list_C:
             if comm is None:
@@ -501,6 +498,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
                 comm[0](comm[1], comm[2], group=comm[3])
     else: # if #layers is even
         B = B_.clone()
+    torch.cuda.synchronize()
+    dist.barrier()
+    time_perf = time.perf_counter() - time_perf
+    if my_rank == root_rank:
+        print("2D reorder %.2f us" % (time_perf * 1e6))
 
     return B
 
