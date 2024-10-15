@@ -257,9 +257,9 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
     map_2D = [[None for _ in range(TP_sqrt)] for _ in range(TP_sqrt)]
     for i in range(TP_sqrt):
         for j in range(TP_sqrt):
-            # map_2D[i][j] = i * TP_sqrt + j # Cartesian (row-wise)
+            map_2D[i][j] = i * TP_sqrt + j # Cartesian (row-wise)
             # map_2D[i][j] = j * TP_sqrt + i # Cartesian (column-wise)
-            map_2D[i][j] = hilbert_curve_index(TP_sqrt, i, j) # Hilbert curve
+            # map_2D[i][j] = hilbert_curve_index(TP_sqrt, i, j) # Hilbert curve
             # map_2D[i][j] = morton_index(i, j) # Morton (Z-order) curve
 
     # Map local_rank to a 2D domain
@@ -402,6 +402,7 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
             B_ = B.clone()
         else:
             comm[0](comm[1], comm[2], group=comm[3])
+    dist.all_gather_into_tensor(B_buff, B_, group=group_TP_col)
     torch.cuda.synchronize()
     dist.barrier()
     time_perf = time.perf_counter() - time_perf
@@ -415,14 +416,11 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         event_start.record()
         # iterate over layers
         for layer in range(num_layers):
-            if layer % 2 == 0: # if layer is even
-                dist.all_gather_into_tensor(B_buff, B_, group=group_TP_col)
-                torch.matmul(list_A[layer], B_buff, out=C_buff)
-                dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_row)
-            else: # if layer is odd
-                dist.all_gather_into_tensor(B_buff, B_, group=group_TP_row)
-                torch.matmul(list_A[layer], B_buff, out=C_buff)
-                dist.reduce_scatter_tensor(B_, C_buff, group=group_TP_col)
+            torch.matmul(list_A[layer], B_buff, out=C_buff)
+            if layer % 2 == 0: # layer is even
+                dist.all_reduce(B_buff, C_buff, group=group_TP_row)
+            else: # layer is odd
+                dist.all_reduce(B_buff, C_buff, group=group_TP_col)
         event_end.record()
         torch.cuda.synchronize()
         dist.barrier()
