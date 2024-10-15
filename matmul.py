@@ -399,10 +399,10 @@ def matmul_2D(hidden_dim = 16384, batch_size = 1024, num_layers = 126, TP=8, DP 
         time_perf = time.perf_counter()
         event_start.record()
         # reorder B
-        if is_self:
-            B_ = B.clone() 
-        else:
-            for comm in my_comm_list:
+        for comm in my_comm_list:
+            if comm is None:
+                B_ = B.clone()
+            else:
                 comm[0](comm[1], comm[2], group=comm[3])
         # iterate over layers
         for layer in range(num_layers):
