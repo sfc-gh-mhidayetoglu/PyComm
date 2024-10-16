@@ -1,7 +1,6 @@
 import torch
 import torch.distributed as dist
 import time
-import math
 import numpy as np
 
 # initialize
@@ -28,15 +27,21 @@ if my_rank == root_rank:
 event_start = torch.cuda.Event(enable_timing=True)
 event_end = torch.cuda.Event(enable_timing=True)
 for i in range(0, 3000):
-    buff_ = buff.narrow(0, i * count, count)
+    buff_ = buff.narrow(0, 0, data[i])
     torch.cuda.synchronize()
     dist.barrier()
+    time_start = time.perf_counter()
     event_start.record()
     dist.all_reduce(buff)
     event_end.record()
     torch.cuda.synchronize()
+    time_end = time.perf_counter()
     event_time = event_start.elapsed_time(event_end)
+    perf_time = time_end - time_start
+    time_max = torch.tensor([perf_time], device=my_device)
+    torch.distributed.all_reduce(time_max, op=torch.distributed.ReduceOp.MAX)
+    time_max = time_max.item()
     if my_rank == root_rank:
-        print(f"Time elapsed: {event_time} ms throughput: {bytes / event_time / 1e9} GB/s")
+        print(f"perf {perf_time} event {event_time} ms throughput: {bytes / event_time / 1e9} GB/s")
 
  
