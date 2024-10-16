@@ -42,6 +42,6 @@ for i in range(0, 3000):
     torch.distributed.all_reduce(time_max, op=torch.distributed.ReduceOp.MAX)
     time_max = time_max.item()
     if my_rank == root_rank:
-        print(f"perf {perf_time*1e6:2.f} event {event_time*1e3:2.f} ms throughput: {bytes / event_time / 1e9:.2f} GB/s\n")
+        print(f"perf {perf_time*1e6:.2f} event {event_time*1e3:.2f} ms throughput: {bytes / event_time / 1e9:.2f} GB/s\n")
 
  
