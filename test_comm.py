@@ -3,6 +3,9 @@ import torch.distributed as dist
 import time
 import numpy as np
 import deepspeed
+from deepspeed.tops import create_comm, get_default_comm, Layout
+from deepspeed.accelerator import get_accelerator
+from deepspeed.comm import init_distributed
 
 # initialize
 dist.init_process_group(backend='nccl')
