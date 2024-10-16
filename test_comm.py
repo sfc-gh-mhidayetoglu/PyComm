@@ -56,4 +56,4 @@ for i in range(0, 3000):
     # if my_rank == root_rank:
     #     print(f"iter {i} {data[i]} elements perf {perf_time*1e6:.2f} event {event_time*1e3:.2f} perf max {time_max*1e6:.2f} event max {event_max*1e3:.2f} us throughput: {bytes / event_time / 1e6:.2f} GB/s")
 
- 
+dist.destroy_process_group()
