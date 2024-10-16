@@ -2,6 +2,7 @@ import torch
 import torch.distributed as dist
 import time
 import numpy as np
+import deepspeed
 
 # initialize
 dist.init_process_group(backend='nccl')
