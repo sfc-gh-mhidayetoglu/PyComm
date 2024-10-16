@@ -13,6 +13,7 @@ root_rank = 7
 
 # import number of elements
 data = np.loadtxt('log_0.txt', usecols=4, dtype=int)
+print(data)
 
 count = 8388608
 type = torch.bfloat16
@@ -32,7 +33,7 @@ for i in range(0, 3000):
     dist.barrier()
     time_start = time.perf_counter()
     event_start.record()
-    dist.all_reduce(buff)
+    dist.all_reduce(buff_)
     event_end.record()
     torch.cuda.synchronize()
     time_end = time.perf_counter()
