@@ -19,11 +19,24 @@ count = 8388608
 type = torch.bfloat16
 
 buff = torch.empty(count, dtype=type, device=my_device)
-
-
-
+bytes = buff.numel() * buff.element_size()
 if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()))
     print(data)
-    print(f"Buffer size in MB: {buff.element_size() * buff.numel() / 1e6}")
+    print(f"Buffer size in MB: {bytes / 1e6}")
+
+event_start = torch.cuda.Event(enable_timing=True)
+event_end = torch.cuda.Event(enable_timing=True)
+for i in range(0, 3000):
+    buff_ = buff.narrow(0, i * count, count)
+    torch.cuda.synchronize()
+    dist.barrier()
+    event_start.record()
+    dist.all_reduce(buff)
+    event_end.record()
+    torch.cuda.synchronize()
+    event_time = event_start.elapsed_time(event_end)
+    if my_rank == root_rank:
+        print(f"Time elapsed: {event_time} ms throughput: {bytes / event_time / 1e9} GB/s")
+
  
