@@ -34,6 +34,7 @@ event_start = torch.cuda.Event(enable_timing=True)
 event_end = torch.cuda.Event(enable_timing=True)
 for i in range(0, 3000):
     buff_ = buff.narrow(0, 0, data[i])
+    bytes = buff_.numel() * buff_.element_size()
     torch.cuda.synchronize()
     dist.barrier()
     time_start = time.perf_counter()
