@@ -30,6 +30,7 @@ if my_rank == root_rank:
     print(data)
     print(f"Buffer size in MB: {bytes / 1e6}")
 
+log_new = open('log_new.txt', 'w')
 event_start = torch.cuda.Event(enable_timing=True)
 event_end = torch.cuda.Event(enable_timing=True)
 for i in range(0, 3000):
@@ -47,7 +48,8 @@ for i in range(0, 3000):
     perf_time = time_end - time_start
     event_max = find_max(event_time)
     time_max = find_max(perf_time)
-    if my_rank == root_rank:
-        print(f"iter {i} {data[i]} elements perf {perf_time*1e6:.2f} event {event_time*1e3:.2f} perf max {time_max*1e6:.2f} event max {event_max*1e3:.2f} us throughput: {bytes / event_time / 1e6:.2f} GB/s")
+    log_new.write(f"{i} {data[i]} {perf_time} {event_time} {time_max} {event_max}\n")
+    # if my_rank == root_rank:
+    #     print(f"iter {i} {data[i]} elements perf {perf_time*1e6:.2f} event {event_time*1e3:.2f} perf max {time_max*1e6:.2f} event max {event_max*1e3:.2f} us throughput: {bytes / event_time / 1e6:.2f} GB/s")
 
  
