@@ -36,6 +36,10 @@ if my_rank == root_rank:
     print("Q shape: " + str(Q.shape))
     print("K shape: " + str(K.shape))
     print("V shape: " + str(V.shape))
+    print("Number of bytes in input: " + str(input.element_size() * input.nelement()))
+    print("Number of bytes in Q: " + str(Q.element_size() * Q.nelement()))
+    print("Number of bytes in K: " + str(K.element_size() * K.nelement()))
+    print("Number of bytes in V: " + str(V.element_size() * V.nelement()))
 
 # compute Q, K, V
 q = torch.matmul(input, Q)
@@ -43,12 +47,18 @@ k = torch.matmul(input, K)
 v = torch.matmul(input, V)
 
 if my_rank == root_rank:
+    print("Number of bytes in q: " + str(q.element_size() * q.nelement()))
+    print("Number of bytes in k: " + str(k.element_size() * k.nelement()))
+    print("Number of bytes in v: " + str(v.element_size() * v.nelement()))
     print("q shape: " + str(q.shape))
     print("k shape: " + str(k.shape))
     print("v shape: " + str(v.shape))
 
 # compute attention
-# attention = torch.matmul(q, k.transpose(1, 2))
+attention = torch.matmul(q, k.transpose(0, 1))
+if my_rank == root_rank:
+    print("Number of bytes in attention: " + str(attention.element_size() * attention.nelement()))
+    print("attention shape: " + str(attention.shape))
 
 
 
