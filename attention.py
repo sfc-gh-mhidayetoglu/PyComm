@@ -55,8 +55,13 @@ if my_rank == root_rank:
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"flops: {2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
 
+# calculate softmax
+# A = torch.nn.functional.softmax(A, dim=-1)
+# in-place softmax
+torch.exp(A, out=A)
+summed = torch.sum(A, dim=1, keepdim=True)
+A /= summed
 # compute scores
-A = torch.nn.functional.softmax(A, dim=-1)
 c = torch.matmul(A, v)
 if my_rank == root_rank:
     print(f"scores shape: {c.shape} size {c.element_size() * c.nelement() / 1e9:.2f} GB")
