@@ -10,8 +10,8 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 10 # 100000
-hidden_dim = 1024 # 16384 
+seq_length = 100 # 100000
+hidden_dim = 4096 # 16384 
 num_layers = 126
 
 # parallelization parameters
@@ -46,18 +46,20 @@ if my_rank == root_rank:
     print(f"q shape: {q.shape} size {q.element_size() * q.nelement() / 1e9:.2f} GB")
     print(f"k shape: {k.shape} size {k.element_size() * k.nelement() / 1e9:.2f} GB")
     print(f"v shape: {v.shape} size {v.element_size() * v.nelement() / 1e9:.2f} GB")
-    print(f"v shape: {v.shape} size {(v.element_size() * v.nelement()) / 1e9} GB")
+    print(f"flops: {3 * (2 * seq_length * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
 
 # compute attention
 A = torch.matmul(q, k.transpose(0, 1))
 if my_rank == root_rank:
     print(f"attention shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    print(f"flops: {2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
 
 # compute scores
-A = torch.matmul(torch.nn.functional.softmax(A, dim=-1), v)
+A_ = torch.nn.functional.softmax(A, dim=-1)
+c = torch.matmul(A_, v)
 if my_rank == root_rank:
-    print(f"scores shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
+    print(f"scores shape: {c.shape} size {c.element_size() * c.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 
