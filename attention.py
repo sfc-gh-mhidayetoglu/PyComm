@@ -31,11 +31,14 @@ Q = torch.ones(hidden_dim, hidden_dim // num_heads, device=my_device)
 K = torch.ones_like(Q)
 V  = torch.ones_like(Q)
 
+layer = torch.matmul(Q, K.transpose(0, 1))
+
 if my_rank == root_rank:
     print(f"Input shape: {input.shape} size {input.element_size() * input.nelement() / 1e9:.2f} GB")
     print(f"Q shape: {Q.shape} size {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
     print(f"K shape: {K.shape} size {K.element_size() * K.nelement() / 1e9:.2f} GB")
     print(f"V shape: {V.shape} size {V.element_size() * V.nelement() / 1e9:.2f} GB")
+    print(f"Layer shape: {layer.shape} size {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
 
 # compute Q, K, V
 q = torch.matmul(input, Q)
