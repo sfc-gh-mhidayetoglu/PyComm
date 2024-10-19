@@ -48,7 +48,7 @@ if my_rank == root_rank:
     print("v shape: " + str(v.shape))
 
 # compute attention
-attention = torch.matmul(q, k.transpose(1, 2))
+# attention = torch.matmul(q, k.transpose(1, 2))
 
 
 
