@@ -38,7 +38,7 @@ if my_rank == root_rank:
     print(f"Q shape: {Q.shape} size {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
     print(f"K shape: {K.shape} size {K.element_size() * K.nelement() / 1e9:.2f} GB")
     print(f"V shape: {V.shape} size {V.element_size() * V.nelement() / 1e9:.2f} GB")
-    print(f"Layer shape: {layer.shape} size {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
+    print(f"hidden layer shape: {layer.shape} size {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
 
 # compute Q, K, V
 q = torch.matmul(input, Q)
@@ -68,6 +68,18 @@ A /= summed
 c = torch.matmul(A, v)
 if my_rank == root_rank:
     print(f"scores shape: {c.shape} size {c.element_size() * c.nelement() / 1e9:.2f} GB")
+    print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+
+temp = torch.matmul(torch.matmul(input, layer), input.transpose(0, 1))
+if my_rank == root_rank:
+    print(f"temp shape: {temp.shape} size {temp.element_size() * temp.nelement() / 1e9:.2f} GB")
+    print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+torch.exp(temp, out=temp)
+summed = torch.sum(temp, dim=1, keepdim=True)
+temp /= summed
+c_ = torch.matmul(temp, torch.matmul(input, V))
+if my_rank == root_rank:
+    print(f"c_ shape: {c_.shape} size {c_.element_size() * c_.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 
