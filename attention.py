@@ -32,11 +32,10 @@ K = torch.ones_like(Q)
 V  = torch.ones_like(Q)
 
 if my_rank == root_rank:
-    print(f"Input shape: {input.shape} size {(input.element_size() * input.nelement()) / 1e9} GB")
-    print(f"Q shape: {Q.shape} size {(Q.element_size() * Q.nelement()) / 1e9} GB")
-    print(f"K shape: {K.shape} size {(K.element_size() * K.nelement()) / 1e9} GB")
-    print(f"V shape: {V.shape} size {(V.element_size() * V.nelement()) / 1e9} GB")
-
+    print(f"Input shape: {input.shape} size {input.element_size() * input.nelement() / 1e9:.2f} GB")
+    print(f"Q shape: {Q.shape} size {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
+    print(f"K shape: {K.shape} size {K.element_size() * K.nelement() / 1e9:.2f} GB")
+    print(f"V shape: {V.shape} size {V.element_size() * V.nelement() / 1e9:.2f} GB")
 
 # compute Q, K, V
 q = torch.matmul(input, Q)
@@ -44,14 +43,15 @@ k = torch.matmul(input, K)
 v = torch.matmul(input, V)
 
 if my_rank == root_rank:
-    print(f"q shape: {q.shape} size {(q.element_size() * q.nelement()) / 1e9} GB")
-    print(f"k shape: {k.shape} size {(k.element_size() * k.nelement()) / 1e9} GB")
+    print(f"q shape: {q.shape} size {q.element_size() * q.nelement() / 1e9:.2f} GB")
+    print(f"k shape: {k.shape} size {k.element_size() * k.nelement() / 1e9:.2f} GB")
+    print(f"v shape: {v.shape} size {v.element_size() * v.nelement() / 1e9:.2f} GB")
     print(f"v shape: {v.shape} size {(v.element_size() * v.nelement()) / 1e9} GB")
 
 # compute attention
 A = torch.matmul(q, k.transpose(0, 1))
 if my_rank == root_rank:
-    print(f"A shape: {A.shape} size {(A.element_size() * A.nelement()) / 1e9} GB")
+    print(f"A shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
 
 
 
