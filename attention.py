@@ -82,6 +82,14 @@ if my_rank == root_rank:
     print(f"c_ shape: {c_.shape} size {c_.element_size() * c_.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
+# Compare c and c_
+if my_rank == root_rank:
+    atol = 1e-6
+    if torch.allclose(c, c_, atol=atol):
+        print(f"c and c_ are equal within {atol} tolerance.\n")
+    else:
+        print("c and c_ are not equal.")
+
 
 
 
