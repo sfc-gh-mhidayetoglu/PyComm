@@ -11,7 +11,7 @@ root_rank = 7
 
 # model parameters
 seq_length = 100000 # 100000
-hidden_dim = 16384 * 2
+hidden_dim = 16384
 num_layers = 126
 
 # parallelization parameters
