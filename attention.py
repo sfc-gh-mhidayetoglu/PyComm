@@ -11,7 +11,7 @@ root_rank = 7
 
 # model parameters
 seq_length = 100000
-hidden_dim = 16384 * 4
+hidden_dim = 16384 * 2
 num_layers = 126
 
 # parallelization parameters
@@ -51,13 +51,13 @@ if my_rank == root_rank:
 # compute attention
 A = torch.matmul(q, k.transpose(0, 1))
 if my_rank == root_rank:
-    print(f"A shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
+    print(f"attention shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
-# compute softmax
-A = torch.nn.functional.softmax(A, dim=-1)
+# compute scores
+A = torch.matmul(torch.nn.functional.softmax(A, dim=-1), v)
 if my_rank == root_rank:
-    print(f"A shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
+    print(f"scores shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 
