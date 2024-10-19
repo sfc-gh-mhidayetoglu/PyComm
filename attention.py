@@ -1,4 +1,5 @@
 import torch
+import torch.distributed as dist
 
 # initialize
 dist.init_process_group(backend='nccl')
