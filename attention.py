@@ -55,6 +55,12 @@ if my_rank == root_rank:
     print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e9:.2f) + " GB")
 
 
+# compute softmax
+A = torch.nn.functional.softmax(A, dim=-1)
+if my_rank == root_rank:
+    print(f"A shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
+    print("Torch memory allocation: " + str(torch.cuda.memory_allocated() / 1e9:.2f) + " GB")
+
 
 
 
