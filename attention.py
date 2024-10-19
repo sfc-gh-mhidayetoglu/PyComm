@@ -10,8 +10,8 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 100000
-hidden_dim = 16384
+seq_length = 10 # 100000
+hidden_dim = 32 # 16384 
 num_layers = 126
 
 # parallelization parameters
