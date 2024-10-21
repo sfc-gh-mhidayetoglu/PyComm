@@ -31,15 +31,13 @@ Q = torch.ones(hidden_dim, hidden_dim // num_heads, device=my_device)
 K = torch.ones_like(Q)
 V  = torch.ones_like(Q)
 
-layer = torch.matmul(Q, K.transpose(0, 1))
 
 if my_rank == root_rank:
     print(f"Input shape: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
     print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
     print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e9:.2f} GB")
     print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e9:.2f} GB")
-    print(f"hidden layer shape: {layer.shape}, elements: {layer.nelement()}, size: {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
-    
+
 # compute Q, K, V
 q = torch.matmul(input, Q)
 k = torch.matmul(input, K)
@@ -70,8 +68,11 @@ if my_rank == root_rank:
     print(f"c shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
+
+layer = torch.matmul(Q, K.transpose(0, 1))
 temp = torch.matmul(torch.matmul(input, layer), input.transpose(0, 1))
 if my_rank == root_rank:
+    print(f"hidden layer shape: {layer.shape}, elements: {layer.nelement()}, size: {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
     print(f"temp shape: {temp.shape}, elements: {temp.nelement()}, size {temp.element_size() * temp.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 torch.exp(temp, out=temp)
@@ -84,6 +85,8 @@ if my_rank == root_rank:
 
 # Compare c and c_
 if my_rank == root_rank:
+    print(c)
+    print(c_)
     atol = 1e-6
     if torch.allclose(c, c_, atol=atol):
         print(f"c and c_ are equal within {atol} tolerance.\n")
