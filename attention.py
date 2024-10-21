@@ -85,7 +85,7 @@ qk = torch.matmul(torch.matmul(input, layer), input.transpose(0, 1))
 if my_rank == root_rank:
     print(f"hidden layer shape: {layer.shape}, elements: {layer.nelement()}, size: {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-qk.torch.nn.functional.softmax(temp, dim=-1)
+qk = torch.nn.functional.softmax(qk, dim=-1)
 if my_rank == root_rank:
     print(f"qk shape: {qk.shape}, elements: {ql.nelement()}, size {qk.element_size() * qk.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
