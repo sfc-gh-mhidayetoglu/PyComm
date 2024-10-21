@@ -87,7 +87,7 @@ if my_rank == root_rank:
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 qk = torch.nn.functional.softmax(qk, dim=-1)
 if my_rank == root_rank:
-    print(f"qk shape: {qk.shape}, elements: {ql.nelement()}, size {qk.element_size() * qk.nelement() / 1e9:.2f} GB")
+    print(f"qk shape: {qk.shape}, elements: {qk.nelement()}, size {qk.element_size() * qk.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 # torch.exp(temp, out=temp)
 # summed = torch.sum(temp, dim=1, keepdim=True)
