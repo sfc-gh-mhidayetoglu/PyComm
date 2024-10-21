@@ -93,13 +93,16 @@ if my_rank == root_rank:
 # summed = torch.sum(temp, dim=1, keepdim=True)
 # temp /= summed
 
-K_T = K.transpose(0, 1)
-c_ = torch.matmul(torch.nn.functional.softmax(torch.matmul(torch.matmul(input, torch.matmul(Q, K_T)), input.transpose(0, 1)), dim=-1), torch.matmul(input, V))
-
 c_ = torch.matmul(qk, torch.matmul(input, V))
 if my_rank == root_rank:
     print(f"c_ shape: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+
+
+
+K_T = K.transpose(0, 1)
+c_ = torch.matmul(torch.nn.functional.softmax(torch.matmul(torch.matmul(input, torch.matmul(Q, K_T)), input.transpose(0, 1)), dim=-1), torch.matmul(input, V))
+c =  torch.matmul(torch.nn.functional.softmax(torch.matmul(torch.matmul(input, Q), torch.matmul(input, K).transpose(0, 1)), dim=-1), torch.matmul(input, V))
 
 # Compare c and c_
 if my_rank == root_rank:
