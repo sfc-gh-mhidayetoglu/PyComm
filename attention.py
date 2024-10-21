@@ -92,6 +92,10 @@ if my_rank == root_rank:
 # torch.exp(temp, out=temp)
 # summed = torch.sum(temp, dim=1, keepdim=True)
 # temp /= summed
+
+K_T = K.transpose(0, 1)
+c_ = torch.matmul(torch.nn.functional.softmax(torch.matmul(torch.matmul(input, torch.matmul(Q, K_T)), input.transpose(0, 1)), dim=-1), torch.matmul(input, V))
+
 c_ = torch.matmul(qk, torch.matmul(input, V))
 if my_rank == root_rank:
     print(f"c_ shape: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e9:.2f} GB")
