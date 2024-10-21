@@ -59,6 +59,7 @@ if my_rank == root_rank:
 # compute attention
 A = torch.matmul(q, k.transpose(0, 1))
 if my_rank == root_rank:
+    print(A)
     print(f"attention shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"flops: {2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
