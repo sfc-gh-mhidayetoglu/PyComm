@@ -34,27 +34,27 @@ V  = torch.ones_like(Q)
 layer = torch.matmul(Q, K.transpose(0, 1))
 
 if my_rank == root_rank:
-    print(f"Input shape: {input.shape} size {input.element_size() * input.nelement() / 1e9:.2f} GB")
-    print(f"Q shape: {Q.shape} size {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
-    print(f"K shape: {K.shape} size {K.element_size() * K.nelement() / 1e9:.2f} GB")
-    print(f"V shape: {V.shape} size {V.element_size() * V.nelement() / 1e9:.2f} GB")
-    print(f"hidden layer shape: {layer.shape} size {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
-
+    print(f"Input shape: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
+    print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
+    print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e9:.2f} GB")
+    print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e9:.2f} GB")
+    print(f"hidden layer shape: {layer.shape}, elements: {layer.nelement()}, size: {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
+    
 # compute Q, K, V
 q = torch.matmul(input, Q)
 k = torch.matmul(input, K)
 v = torch.matmul(input, V)
 
 if my_rank == root_rank:
-    print(f"q shape: {q.shape} size {q.element_size() * q.nelement() / 1e9:.2f} GB")
-    print(f"k shape: {k.shape} size {k.element_size() * k.nelement() / 1e9:.2f} GB")
-    print(f"v shape: {v.shape} size {v.element_size() * v.nelement() / 1e9:.2f} GB")
+    print(f"q shape: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e9:.2f} GB")
+    print(f"k shape: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e9:.2f} GB")
+    print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e9:.2f} GB")
     print(f"flops: {3 * (2 * seq_length * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
 
 # compute attention
 A = torch.matmul(q, k.transpose(0, 1))
 if my_rank == root_rank:
-    print(f"attention shape: {A.shape} size {A.element_size() * A.nelement() / 1e9:.2f} GB")
+    print(f"attention shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"flops: {2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
 
@@ -67,19 +67,19 @@ A /= summed
 # compute scores
 c = torch.matmul(A, v)
 if my_rank == root_rank:
-    print(f"scores shape: {c.shape} size {c.element_size() * c.nelement() / 1e9:.2f} GB")
+    print(f"scores shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 temp = torch.matmul(torch.matmul(input, layer), input.transpose(0, 1))
 if my_rank == root_rank:
-    print(f"temp shape: {temp.shape} size {temp.element_size() * temp.nelement() / 1e9:.2f} GB")
+    print(f"temp shape: {temp.shape}, elements: {temp.nelement()}, size {temp.element_size() * temp.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 torch.exp(temp, out=temp)
 summed = torch.sum(temp, dim=1, keepdim=True)
 temp /= summed
 c_ = torch.matmul(temp, torch.matmul(input, V))
 if my_rank == root_rank:
-    print(f"c_ shape: {c_.shape} size {c_.element_size() * c_.nelement() / 1e9:.2f} GB")
+    print(f"temp shape: {temp.shape}, elements: {temp.nelement()}, size {temp.element_size() * temp.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 # Compare c and c_
