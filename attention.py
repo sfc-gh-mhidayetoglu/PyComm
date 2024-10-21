@@ -65,11 +65,11 @@ if my_rank == root_rank:
     print(f"flops: {2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
 
 # calculate softmax
-# A = torch.nn.functional.softmax(A, dim=-1)
+A = torch.nn.functional.softmax(A, dim=-1)
 # in-place softmax
-torch.exp(A, out=A)
-summed = torch.sum(A, dim=1, keepdim=True)
-A /= summed
+# torch.exp(A, out=A)
+# summed = torch.sum(A, dim=1, keepdim=True)
+# A /= summed
 # compute scores
 c = torch.matmul(A, v)
 if my_rank == root_rank:
