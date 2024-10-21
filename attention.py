@@ -73,6 +73,9 @@ A /= summed
 # compute scores
 c = torch.matmul(A, v)
 if my_rank == root_rank:
+    print(A)
+    print(f"scores shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
+    print(c)
     print(f"c shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
