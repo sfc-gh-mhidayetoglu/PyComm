@@ -81,17 +81,20 @@ if my_rank == root_rank:
 
 
 layer = torch.matmul(Q, K.transpose(0, 1))
-temp = torch.matmul(torch.matmul(input, layer), input.transpose(0, 1))
+qk = torch.matmul(torch.matmul(input, layer), input.transpose(0, 1))
 if my_rank == root_rank:
     print(f"hidden layer shape: {layer.shape}, elements: {layer.nelement()}, size: {layer.element_size() * layer.nelement() / 1e9:.2f} GB")
-    print(f"temp shape: {temp.shape}, elements: {temp.nelement()}, size {temp.element_size() * temp.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-torch.exp(temp, out=temp)
-summed = torch.sum(temp, dim=1, keepdim=True)
-temp /= summed
-c_ = torch.matmul(temp, torch.matmul(input, V))
+qk.torch.nn.functional.softmax(temp, dim=-1)
 if my_rank == root_rank:
-    print(f"temp shape: {temp.shape}, elements: {temp.nelement()}, size {temp.element_size() * temp.nelement() / 1e9:.2f} GB")
+    print(f"qk shape: {qk.shape}, elements: {ql.nelement()}, size {qk.element_size() * qk.nelement() / 1e9:.2f} GB")
+    print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+# torch.exp(temp, out=temp)
+# summed = torch.sum(temp, dim=1, keepdim=True)
+# temp /= summed
+c_ = torch.matmul(qk, torch.matmul(input, V))
+if my_rank == root_rank:
+    print(f"c_ shape: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 # Compare c and c_
