@@ -94,7 +94,6 @@ if my_rank == root_rank:
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
-exit()
 # compute attention
 A = torch.matmul(q, k_.transpose(1, 2))
 if my_rank == root_rank:
