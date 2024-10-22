@@ -12,7 +12,7 @@ root_rank = 7
 # model parameters
 seq_length = 10000 # 10000 # 100000
 hidden_dim = 16384
-num_heads = 128
+num_heads = 1
 type = torch.bfloat16
 # num_layers = 126
 
