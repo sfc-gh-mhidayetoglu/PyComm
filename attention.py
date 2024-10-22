@@ -44,7 +44,7 @@ if my_rank == root_rank:
     print(V)
     print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e3:.2f} KB")
 
-return
+exit() 
 
 # compute Q, K, V
 q = torch.matmul(input, Q)
