@@ -36,10 +36,10 @@ if my_rank == root_rank:
 
 # initialize input and model
 # input [N/SP, d]
-input = torch.randn(seq_length // SP, hidden_dim, device=my_device) 
+input = torch.randn(seq_length // SP, hidden_dim, device=my_device) # [N/SP, d]
 Q = torch.ones(hidden_dim // SP, num_heads // HP, hidden_dim // num_heads, device=my_device)
-K = torch.ones_like(Q)
-V  = torch.ones_like(Q)
+K = torch.ones_like(Q) # [d/SP, h/HP, d/h]
+V  = torch.ones_like(Q) # [d/SP, h/HP, d/h]
 
 if my_rank == root_rank:
     # print(input)
@@ -58,6 +58,10 @@ group_TP = dist.new_group(ranks, use_local_synchronization=True)
 
 Q_ = torch.empty(hidden_dim, num_heads//HP, hidden_dim//num_heads, device=my_device)
 dist.all_gather(Q_, Q, group=group_TP)
+
+if my_rank == root_rank:
+    print(f"Q_ shape: {Q_.shape}, elements: {Q_.nelement()}, size: {Q_.element_size() * Q_.nelement() / 1e6:.2f} MB")
+    print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 exit()
 
