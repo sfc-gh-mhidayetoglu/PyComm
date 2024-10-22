@@ -56,17 +56,18 @@ if my_rank == root_rank:
     print(f"k shape: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e6:.2f} MB")
     # print(v)
     print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
+    print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"flops: {3 * (2 * seq_length * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
 
-exit()
-
 # compute attention
-A = torch.matmul(q, k.transpose(0, 1))
+A = torch.matmul(q, k.transpose(1, 2))
 if my_rank == root_rank:
     print(A)
     print(f"attention shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"flops: {2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
+
+exit()
 
 # calculate softmax
 A = torch.nn.functional.softmax(A, dim=-1)
