@@ -14,6 +14,7 @@ seq_length = 10000 # 10000 # 100000
 hidden_dim = 16384
 num_layers = 126
 num_heads = 128
+type = torch.bfloat16
 
 # parallelization parameters
 HP = 2 # parallelize among heads (embarrassimgly parallel)
@@ -34,8 +35,8 @@ if my_rank == root_rank:
 
 # initialize input and model
 # input [N/SP, d]
-input = torch.randn(seq_length // SP, hidden_dim, device=my_device) # [N/SP, d]
-Q = torch.ones(num_heads // HP, hidden_dim // SP, hidden_dim // num_heads, device=my_device)
+input = torch.randn(seq_length // SP, hidden_dim, device=my_device, dtype=type) # [N/SP, d]
+Q = torch.ones(num_heads // HP, hidden_dim // SP, hidden_dim // num_heads, device=my_device, dtype=type) # [h/HP, d/SP, d/h]
 K = torch.ones_like(Q) # [d/SP, h/HP, d/h]
 V  = torch.ones_like(Q) # [d/SP, h/HP, d/h]
 
@@ -55,7 +56,7 @@ print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 
 # Q_ = torch.empty(num_heads//HP, hidden_dim, hidden_dim//num_heads, device=my_device)
-Q_ = torch.empty(SP, num_heads//HP, hidden_dim//SP, hidden_dim//num_heads, device=my_device)
+Q_ = torch.empty(SP, num_heads//HP, hidden_dim//SP, hidden_dim//num_heads, device=my_device, dtype=type)
 K_ = torch.empty_like(Q_)
 V_ = torch.empty_like(Q_)
 dist.all_gather_into_tensor(Q_, Q, group=group_TP)
@@ -92,7 +93,7 @@ if my_rank == root_rank:
     print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
-k_ = torch.empty(SP, num_heads//HP, seq_length//SP, hidden_dim//num_heads, device=my_device)
+k_ = torch.empty(SP, num_heads//HP, seq_length//SP, hidden_dim//num_heads, device=my_device, dtype=type)
 if my_rank == root_rank:
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
