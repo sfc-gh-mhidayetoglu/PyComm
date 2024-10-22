@@ -16,7 +16,11 @@ num_layers = 126
 num_heads = 128
 
 # parallelization parameters
-TP = 16
+HP = 4
+SP = 2
+assert HP * SP == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
+
+
 
 # report parameters
 if my_rank == root_rank:
@@ -25,11 +29,14 @@ if my_rank == root_rank:
     print("hidden dim: " + str(hidden_dim))
     print("num layers: " + str(num_layers))
     print("num heads: " + str(num_heads))
-    print("TP: " + str(TP) + " head per GPU: " + str(num_heads // world_size) + "\n")
+    print("HP: " + str(HP))
+    print("SP: " + str(SP))
+    print("head per GPU: " + str(num_heads//HP) + "tokens per GPU: " + str(seq_length//SP) + "\n")
 
 # initialize input and model
-input = torch.randn(seq_length, hidden_dim, device=my_device)
-Q = torch.ones(num_heads // TP, hidden_dim, hidden_dim // num_heads, device=my_device)
+# input [N/SP, d]
+input = torch.randn(seq_length // SP, hidden_dim, device=my_device) 
+Q = torch.ones(num_heads // HP, hidden_dim // SP, hidden_dim // num_heads, device=my_device)
 K = torch.ones_like(Q)
 V  = torch.ones_like(Q)
 
@@ -49,7 +56,7 @@ k = torch.matmul(input, K) # [h/p, N, d/h]
 v = torch.matmul(input, V) # [h/p, N, d/h]
 
 if my_rank == root_rank:
-    print(f"DxQ=q + DxK=k + DxV=v flops: {num_heads // TP * 3 * (2 * seq_length * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
+    print(f"DxQ=q + DxK=k + DxV=v flops: {num_heads // HP * 3 * (2 * seq_length // SP * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
     # print(q)
     print(f"q shape: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
     # print(k)
@@ -58,10 +65,12 @@ if my_rank == root_rank:
     print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
+exit()
+
 # compute attention
 A = torch.matmul(q, k.transpose(1, 2)) # [h/p, N, N]
 if my_rank == root_rank:
-    print(f"A=qxk' flops: {num_heads // TP * 2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
+    print(f"A=qxk' flops: {num_heads // HP * 2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
     # print(A)
     print(f"A shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
