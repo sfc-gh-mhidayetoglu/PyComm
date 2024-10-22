@@ -17,8 +17,8 @@ type = torch.bfloat16
 # num_layers = 126
 
 # parallelization parameters
-HP = 1 # parallelize among heads (embarrassimgly parallel)
-SP = 16 # parallelize among sequence length (communication)
+HP = 16 # parallelize among heads (embarrassimgly parallel)
+SP = 1 # parallelize among sequence length (communication)
 
 P = HP * SP
 assert P == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
@@ -73,7 +73,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     V  = torch.ones_like(Q)
 
     if my_rank == root_rank:
-        print("2D Ulysses Attention")
+        print("\n2D Ulysses Attention")
         print(f"input: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e8:.2f} GB")
         print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
         print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
