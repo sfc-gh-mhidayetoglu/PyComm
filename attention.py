@@ -52,7 +52,7 @@ if my_rank == root_rank:
 
 # Create group communicators
 ranks = [i for i in range(world_size) if i // SP == my_rank // SP]
-print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
+# print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 
 # Q_ = torch.empty(num_heads//HP, hidden_dim, hidden_dim//num_heads, device=my_device)
