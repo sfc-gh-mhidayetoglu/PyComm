@@ -28,7 +28,7 @@ if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
     print("seq length: " + str(seq_length))
     print("hidden dim: " + str(hidden_dim))
-    print("num layers: " + str(num_layers))
+    # print("num layers: " + str(num_layers))
     print("num heads: " + str(num_heads))
     print("HP: " + str(HP) + " head parallelism")
     print("SP: " + str(SP) + " sequence parallelism")
@@ -145,7 +145,6 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         # print(c)
         print(f"c shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-
     o_proj = torch.ones(num_heads//HP, hidden_dim//SP, hidden_dim, device=my_device, dtype=type)
     if my_rank == root_rank:
         print(f"o_proj shape: {o_proj.shape}, elements: {o_proj.nelement()}, size {o_proj.element_size() * o_proj.nelement() / 1e6:.2f} MB")
