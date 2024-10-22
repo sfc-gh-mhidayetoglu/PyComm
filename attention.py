@@ -17,7 +17,7 @@ num_heads = 128
 
 # parallelization parameters
 HP = 2
-SP = 16
+SP = 8
 assert HP * SP == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
 
 
@@ -37,7 +37,7 @@ if my_rank == root_rank:
 # initialize input and model
 # input [N/SP, d]
 input = torch.randn(seq_length // SP, hidden_dim, device=my_device) # [N/SP, d]
-Q = torch.ones(hidden_dim // SP, num_heads // HP, hidden_dim // num_heads, device=my_device)
+Q = torch.ones(num_heads // HP, hidden_dim // SP, hidden_dim // num_heads, device=my_device)
 K = torch.ones_like(Q) # [d/SP, h/HP, d/h]
 V  = torch.ones_like(Q) # [d/SP, h/HP, d/h]
 
