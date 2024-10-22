@@ -148,8 +148,13 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
 
     o_proj = torch.ones(num_heads//HP, hidden_dim//SP, hidden_dim, device=my_device, dtype=type)
     if my_rank == root_rank:
+        print(f"o_proj shape: {o_proj.shape}, elements: {o_proj.nelement()}, size {o_proj.element_size() * o_proj.nelement() / 1e6:.2f} MB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
     output = torch.matmul(c, o_proj)
+    if my_rank == root_rank:
+        print(f"output shape: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e9:.2f} GB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
     return output
 
