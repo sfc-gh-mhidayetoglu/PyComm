@@ -17,8 +17,8 @@ type = torch.bfloat16
 # num_layers = 126
 
 # parallelization parameters
-HP = 16 # parallelize among heads (embarrassimgly parallel)
-SP = 1 # parallelize among sequence length (communication)
+HP = 1 # parallelize among heads (embarrassimgly parallel)
+SP = 16 # parallelize among sequence length (communication)
 
 P = HP * SP
 assert P == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
@@ -39,16 +39,19 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
     # input [N/P, d]
     # Q, K, V [h, d, d/h]
+    # proj [h, d/h, d]
     input = torch.randn(seq_length // P, hidden_dim, device=my_device, dtype=type)
     Q = torch.ones(num_heads, hidden_dim, hidden_dim // num_heads, device=my_device, dtype=type) # [h/HP, d/SP, d/h]
     K = torch.ones_like(Q)
     V  = torch.ones_like(Q)
+    proj = torch.ones(num_heads, hidden_dim // num_heads, hidden_dim, device=my_device, dtype=type)
     if my_rank == root_rank:
         print("\nUlysses attention")
         print(f"input: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
         print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
         print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
         print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
+        print(f"proj shape: {proj.shape}, elements: {proj.nelement()}, size: {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
 
     # compute q, k, v
     q = torch.matmul(input, Q)
