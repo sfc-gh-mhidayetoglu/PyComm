@@ -57,7 +57,7 @@ print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 
 Q_ = torch.empty(hidden_dim, num_heads//HP, hidden_dim//num_heads, device=my_device)
-dist.all_gather(Q_, Q, group=group_TP)
+dist.all_gather_into_tensor(Q_, Q, group=group_TP)
 
 if my_rank == root_rank:
     print(f"Q_ shape: {Q_.shape}, elements: {Q_.nelement()}, size: {Q_.element_size() * Q_.nelement() / 1e6:.2f} MB")
