@@ -68,9 +68,9 @@ if my_rank == root_rank:
     print(f"K_ shape: {K_.shape}, elements: {K_.nelement()}, size: {K_.element_size() * K_.nelement() / 1e6:.2f} MB")
     print(f"V_ shape: {V_.shape}, elements: {V_.nelement()}, size: {V_.element_size() * V_.nelement() / 1e6:.2f} MB")
 
-Q_ = torch.reshape(Q_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
-K_ = torch.reshape(K_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
-V_ = torch.reshape(V_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+Q_ = torch.reshape(Q_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+K_ = torch.reshape(K_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+V_ = torch.reshape(V_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
 
 if my_rank == root_rank:
     print(f"Q_ shape: {Q_.shape}, elements: {Q_.nelement()}, size: {Q_.element_size() * Q_.nelement() / 1e6:.2f} MB")
