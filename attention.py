@@ -10,9 +10,9 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 10000 # 10000 # 100000
+seq_length = 50000 # 10000 # 100000
 hidden_dim = 16384
-num_heads = 1
+num_heads = 128
 type = torch.bfloat16
 # num_layers = 126
 
@@ -134,8 +134,10 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     dist.all_gather_into_tensor(v_, v, group=group_TP)
 
     # transpose k_ and v_
-    k_.transpose(0, 1).reshape(num_heads//HP, seq_length, hidden_dim//num_heads)
-    v_.transpose(0, 1).reshape(num_heads//HP, seq_length, hidden_dim//num_heads)
+    k_.transpose(0, 1)
+    v_.transpose(0, 1)
+    k_.reshape(num_heads//HP, seq_length, hidden_dim//num_heads)
+    v_.reshape(num_heads//HP, seq_length, hidden_dim//num_heads)
     if my_rank == root_rank:
         print("transpose k_ and v_")
         print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
