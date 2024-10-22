@@ -33,7 +33,6 @@ Q = torch.ones(num_heads // TP, hidden_dim, hidden_dim // num_heads, device=my_d
 K = torch.ones_like(Q)
 V  = torch.ones_like(Q)
 
-
 if my_rank == root_rank:
     # print(input)
     print(f"Input shape: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e8:.2f} GB")
@@ -45,9 +44,9 @@ if my_rank == root_rank:
     print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
 
 # compute Q, K, V
-q = torch.matmul(input, Q)
-k = torch.matmul(input, K)
-v = torch.matmul(input, V)
+q = torch.matmul(input, Q) # [h/p, N, d/h]
+k = torch.matmul(input, K) # [h/p, N, d/h]
+v = torch.matmul(input, V) # [h/p, N, d/h]
 
 if my_rank == root_rank:
     # print(q)
@@ -62,7 +61,7 @@ if my_rank == root_rank:
 # compute attention
 A = torch.matmul(q, k.transpose(1, 2)) # [h/p, N, N]
 if my_rank == root_rank:
-    print(A)
+    # print(A)
     print(f"attention shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"flops: {2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
