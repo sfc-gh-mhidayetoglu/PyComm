@@ -74,7 +74,7 @@ K_ = torch.reshape(K_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//n
 V_ = torch.reshape(V_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
 
 if my_rank == root_rank:
-    print("transpose")
+    print("reshape Q_, K_, V_")
     print(f"Q_ shape: {Q_.shape}, elements: {Q_.nelement()}, size: {Q_.element_size() * Q_.nelement() / 1e6:.2f} MB")
     print(f"K_ shape: {K_.shape}, elements: {K_.nelement()}, size: {K_.element_size() * K_.nelement() / 1e6:.2f} MB")
     print(f"V_ shape: {V_.shape}, elements: {V_.nelement()}, size: {V_.element_size() * V_.nelement() / 1e6:.2f} MB")
@@ -97,17 +97,22 @@ if my_rank == root_rank:
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 k_ = torch.empty(SP, num_heads//HP, seq_length//SP, hidden_dim//num_heads, device=my_device, dtype=type)
+v_ = torch.empty_like(k_)
 if my_rank == root_rank:
-    print("all-gather k")
+    print("all-gather k and v")
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
+    print(f"v_ shape: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 dist.all_gather_into_tensor(k_, k, group=group_TP)
+dist.all_gather_into_tensor(v_, v, group=group_TP)
 
 k_ = torch.reshape(k_, (num_heads//HP, seq_length, hidden_dim//num_heads))
+v_ = torch.reshape(v_, (num_heads//HP, seq_length, hidden_dim//num_heads))
 
 if my_rank == root_rank:
-    print("reshape k")
+    print("reshape k_ and v_")
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
+    print(f"v_ shape: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 # compute attention
@@ -119,23 +124,20 @@ if my_rank == root_rank:
     print(f"A shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
-exit()
-
 # calculate softmax
-A = torch.nn.functional.softmax(A, dim=-1)
+# A = torch.nn.functional.softmax(A, dim=-1)
 # in-place softmax
 # torch.exp(A, out=A)
 # summed = torch.sum(A, dim=1, keepdim=True)
 # A /= summed
 # compute scores
-c = torch.matmul(A, v)
+c = torch.matmul(A, v_)
 if my_rank == root_rank:
-    print(A)
-    print(f"scores shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
-    print(c)
+    # print(c)
     print(f"c shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
+exit()
 
 layer = torch.matmul(Q, K.transpose(0, 1))
 qk = torch.matmul(torch.matmul(input, layer), input.transpose(0, 1))
