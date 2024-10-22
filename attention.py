@@ -10,7 +10,7 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 50000 # 10000 # 100000
+seq_length = 80000 # 10000 # 100000
 hidden_dim = 16384
 num_heads = 128
 type = torch.bfloat16
@@ -41,7 +41,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # Q, K, V [h, d, d/h]
     # proj [h, d/h, d]
     input = torch.randn(seq_length // P, hidden_dim, device=my_device, dtype=type)
-    Q = torch.ones(num_heads, hidden_dim, hidden_dim // num_heads, device=my_device, dtype=type) # [h/HP, d/SP, d/h]
+    Q = torch.ones(num_heads, hidden_dim, hidden_dim // num_heads, device=my_device, dtype=type)
     K = torch.ones_like(Q)
     V  = torch.ones_like(Q)
     proj = torch.ones(num_heads, hidden_dim // num_heads, hidden_dim, device=my_device, dtype=type)
