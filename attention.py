@@ -185,7 +185,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
     # all-reduce output
-    # dist.all_reduce(output, group=group_HP)
+    dist.all_reduce(output, group=group_HP)
 
     return output
 
