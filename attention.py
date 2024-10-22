@@ -80,6 +80,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
         print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
         print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
+        print(f"proj shape: {proj.shape}, elements: {proj.nelement()}, size: {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
 
     # Create group communicators
     ranks = [i for i in range(world_size) if i // SP == my_rank // SP]
@@ -168,10 +169,6 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     if my_rank == root_rank:
         print("transpose c")
         print(f"c shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
-        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-
-    if my_rank == root_rank:
-        print(f"o_proj shape: {o_proj.shape}, elements: {o_proj.nelement()}, size {o_proj.element_size() * o_proj.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
     output = torch.matmul(c, torch.reshape(proj, (hidden_dim//HP, hidden_dim)))
