@@ -33,8 +33,9 @@ if my_rank == root_rank:
     print("type: " + str(type))
     print("HP: " + str(HP) + " head parallelism")
     print("SP: " + str(SP) + " sequence parallelism")
+    print("head per GPU: " + str(num_heads//HP) + " tokens per GPU: " + str(seq_length//SP))
     print("P = HP x SP: " + str(HP * SP))
-    print("head per GPU: " + str(num_heads//HP) + "tokens per GPU: " + str(seq_length//SP) + "\n")
+    print("head per GPU: " + str(num_heads//P) + " tokens per GPU: " + str(seq_length//P))
 
 def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
@@ -84,6 +85,8 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"A = q x k' flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
         print(f"A [h/P, N, N]: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    # softmax A
+    A = torch.nn.functional.softmax(A, dim=-1)
     # compute c
     c = torch.matmul(A, v_)
     if my_rank == root_rank:
