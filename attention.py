@@ -182,6 +182,11 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         print(f"output shape: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
+    output = torch.sum(output, dim=0)
+    if my_rank == root_rank:
+        print(f"output shape: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e9:.2f} GB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+
     # all-reduce output
     # dist.all_reduce(output, group=group_HP)
 
