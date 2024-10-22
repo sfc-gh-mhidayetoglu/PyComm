@@ -134,8 +134,8 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     dist.all_gather_into_tensor(v_, v, group=group_TP)
 
     # transpose k_ and v_
-    k_ = torch.transpose(k_, (0, 1))
-    v_ = torch.transpose(v_, (0, 1))
+    k_.transpose(0, 1)
+    v_.transpose(0, 1)
     k_.reshape(num_heads//HP, seq_length, hidden_dim//num_heads)
     v_.reshape(num_heads//HP, seq_length, hidden_dim//num_heads)
     if my_rank == root_rank:
