@@ -82,13 +82,18 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     dist.all_to_all_single(q_, q)
     dist.all_to_all_single(k_, k)
     dist.all_to_all_single(v_, v)
-
     # compute attention
     A = torch.matmul(q_, k_.transpose(1, 2))
     if my_rank == root_rank:
         print("compute attention")
         print(f"A=qxk' flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
         print(f"A [h/P, N, N]: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    # compute c
+    c = torch.matmul(A, v_)
+    if my_rank == root_rank:
+        print("compute c")
+        print(f"c [h, N/P, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 
