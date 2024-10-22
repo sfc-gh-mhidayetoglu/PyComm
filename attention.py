@@ -59,31 +59,34 @@ group_TP = dist.new_group(ranks, use_local_synchronization=True)
 Q_ = torch.empty(SP, num_heads//HP, hidden_dim//SP, hidden_dim//num_heads, device=my_device, dtype=type)
 K_ = torch.empty_like(Q_)
 V_ = torch.empty_like(Q_)
-dist.all_gather_into_tensor(Q_, Q, group=group_TP)
-dist.all_gather_into_tensor(K_, Q, group=group_TP)
-dist.all_gather_into_tensor(V_, Q, group=group_TP)
-
 if my_rank == root_rank:
+    print("all-gather Q, K, V")
     print(f"Q_ shape: {Q_.shape}, elements: {Q_.nelement()}, size: {Q_.element_size() * Q_.nelement() / 1e6:.2f} MB")
     print(f"K_ shape: {K_.shape}, elements: {K_.nelement()}, size: {K_.element_size() * K_.nelement() / 1e6:.2f} MB")
     print(f"V_ shape: {V_.shape}, elements: {V_.nelement()}, size: {V_.element_size() * V_.nelement() / 1e6:.2f} MB")
-
+# all-gather
+dist.all_gather_into_tensor(Q_, Q, group=group_TP)
+dist.all_gather_into_tensor(K_, Q, group=group_TP)
+dist.all_gather_into_tensor(V_, Q, group=group_TP)
+# transpose
 Q_ = torch.reshape(Q_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
 K_ = torch.reshape(K_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
 V_ = torch.reshape(V_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
 
 if my_rank == root_rank:
+    print("transpose")
     print(f"Q_ shape: {Q_.shape}, elements: {Q_.nelement()}, size: {Q_.element_size() * Q_.nelement() / 1e6:.2f} MB")
     print(f"K_ shape: {K_.shape}, elements: {K_.nelement()}, size: {K_.element_size() * K_.nelement() / 1e6:.2f} MB")
     print(f"V_ shape: {V_.shape}, elements: {V_.nelement()}, size: {V_.element_size() * V_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
-# compute Q, K, V
-q = torch.matmul(input, Q_.reshape(num_heads//HP, hidden_dim, hidden_dim//num_heads))
-k = torch.matmul(input, K_.reshape(num_heads//HP, hidden_dim, hidden_dim//num_heads))
-v = torch.matmul(input, V_.reshape(num_heads//HP, hidden_dim, hidden_dim//num_heads))
+# compute q, k, v
+q = torch.matmul(input, Q_)
+k = torch.matmul(input, K_)
+v = torch.matmul(input, V_)
 
 if my_rank == root_rank:
+    print("compute q, k, v")
     print(f"DxQ=q + DxK=k + DxV=v flops: {num_heads // HP * 3 * (2 * seq_length // SP * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
     # print(q)
     print(f"q shape: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
@@ -95,6 +98,7 @@ if my_rank == root_rank:
 
 k_ = torch.empty(SP, num_heads//HP, seq_length//SP, hidden_dim//num_heads, device=my_device, dtype=type)
 if my_rank == root_rank:
+    print("all-gather k")
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 dist.all_gather_into_tensor(k_, k, group=group_TP)
@@ -102,12 +106,14 @@ dist.all_gather_into_tensor(k_, k, group=group_TP)
 k_ = torch.reshape(k_, (num_heads//HP, seq_length, hidden_dim//num_heads))
 
 if my_rank == root_rank:
+    print("reshape k")
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 # compute attention
 A = torch.matmul(q, k_.transpose(1, 2))
 if my_rank == root_rank:
+    print("compute attention")
     print(f"A=qxk' flops: {num_heads // HP * 2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
     # print(A)
     print(f"A shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
