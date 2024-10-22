@@ -15,6 +15,9 @@ hidden_dim = 16384
 num_layers = 126
 num_heads = 128
 
+# parallelization parameters
+TP = 16
+
 # report parameters
 if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
@@ -22,25 +25,26 @@ if my_rank == root_rank:
     print("hidden dim: " + str(hidden_dim))
     print("num layers: " + str(num_layers))
     print("num heads: " + str(num_heads))
-
-return
+    print("TP: " + str(TP) + " head per GPU: " + str(num_heads // world_size) + "\n")
 
 # initialize input and model
 input = torch.randn(seq_length, hidden_dim, device=my_device)
-Q = torch.ones(hidden_dim, hidden_dim // num_heads, device=my_device)
+Q = torch.ones(num_heads // TP, hidden_dim, hidden_dim // num_heads, device=my_device)
 K = torch.ones_like(Q)
 V  = torch.ones_like(Q)
 
 
 if my_rank == root_rank:
     print(input)
-    print(f"Input shape: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
+    print(f"Input shape: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e3:.2f} KB")
     print(Q)
-    print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
+    print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e3:.2f} KB")
     print(K)
-    print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e9:.2f} GB")
+    print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e3:.2f} KB")
     print(V)
-    print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e9:.2f} GB")
+    print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e3:.2f} KB")
+
+return
 
 # compute Q, K, V
 q = torch.matmul(input, Q)
