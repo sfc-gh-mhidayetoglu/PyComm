@@ -87,7 +87,9 @@ if my_rank == root_rank:
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 dist.all_gather_into_tensor(k_, k, group=group_TP)
-k_.reshape(num_heads//HP, seq_length, hidden_dim//num_heads)
+
+k.torch.reshape(num_heads//HP, seq_length, hidden_dim//num_heads)
+
 if my_rank == root_rank:
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
