@@ -44,6 +44,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     K = torch.ones_like(Q)
     V  = torch.ones_like(Q)
     if my_rank == root_rank:
+        print("\nUlysses attention")
         print(f"input: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e8:.2f} GB")
         print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
         print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
@@ -72,6 +73,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     V  = torch.ones_like(Q)
 
     if my_rank == root_rank:
+        print("2D Ulysses Attention")
         print(f"input: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e8:.2f} GB")
         print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
         print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
