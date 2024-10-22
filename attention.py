@@ -44,21 +44,21 @@ if my_rank == root_rank:
     # print(V)
     print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
 
-exit() 
-
 # compute Q, K, V
 q = torch.matmul(input, Q)
 k = torch.matmul(input, K)
 v = torch.matmul(input, V)
 
 if my_rank == root_rank:
-    print(q)
+    # print(q)
     print(f"q shape: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e9:.2f} GB")
-    print(k)
+    # print(k)
     print(f"k shape: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e9:.2f} GB")
-    print(v)
+    # print(v)
     print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e9:.2f} GB")
     print(f"flops: {3 * (2 * seq_length * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
+
+exit()
 
 # compute attention
 A = torch.matmul(q, k.transpose(0, 1))
