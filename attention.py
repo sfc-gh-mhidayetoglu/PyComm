@@ -37,19 +37,26 @@ if my_rank == root_rank:
 
 def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
-    # input [N/SP, d]
-    input = torch.randn(seq_length // P, hidden_dim, device=my_device, dtype=type) # [N/SP, d]
-    Q = torch.ones(num_heads, hidden_dim // SP, hidden_dim // num_heads, device=my_device, dtype=type) # [h/HP, d/SP, d/h]
-    K = torch.ones_like(Q) # [d/SP, h/HP, d/h]
-    V  = torch.ones_like(Q) # [d/SP, h/HP, d/h]
+    # input [N/P, d]
+    # Q, K, V [h, d, d/h]
+    input = torch.randn(seq_length // P, hidden_dim, device=my_device, dtype=type)
+    Q = torch.ones(num_heads, hidden_dim, hidden_dim // num_heads, device=my_device, dtype=type) # [h/HP, d/SP, d/h]
+    K = torch.ones_like(Q)
+    V  = torch.ones_like(Q)
+    if my_rank == root_rank:
+        print(f"input: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e8:.2f} GB")
+        print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
+        print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
+        print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
 
 def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch.Tensor:
     # initialize input and model
     # input [N/SP, d]
-    input = torch.randn(seq_length // SP, hidden_dim, device=my_device, dtype=type) # [N/SP, d]
+    # Q, K, V [h/HP, d/SP, d/h]
+    input = torch.randn(seq_length // SP, hidden_dim, device=my_device, dtype=type)
     Q = torch.ones(num_heads // HP, hidden_dim // SP, hidden_dim // num_heads, device=my_device, dtype=type) # [h/HP, d/SP, d/h]
-    K = torch.ones_like(Q) # [d/SP, h/HP, d/h]
-    V  = torch.ones_like(Q) # [d/SP, h/HP, d/h]
+    K = torch.ones_like(Q)
+    V  = torch.ones_like(Q)
 
     if my_rank == root_rank:
         # print(input)
@@ -191,6 +198,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         else:
             print("c and c_ are not equal.")
 
+ulysses(seq_length, hidden_dim, num_heads, P)
 ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
 
 
