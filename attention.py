@@ -165,6 +165,10 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
 
     c.transpose(0, 1)
     c = torch.reshape(c, (seq_length//SP, hidden_dim))
+    if my_rank == root_rank:
+        print("transpose c")
+        print(f"c shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
     o_proj = torch.ones(num_heads//HP, hidden_dim//num_heads, hidden_dim, device=my_device, dtype=type)
     if my_rank == root_rank:
