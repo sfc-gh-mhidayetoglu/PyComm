@@ -40,16 +40,12 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # input [N/P, d]
     # Q, K, V [h, d, d/h]
     # q, k, v [h, N/P, d/h]
-    # A [h/P, N, N]
-    # c [h, N/P, d/h]
     # proj [h, d/h, d]
-    # output [N/P, d]
     input = torch.randn(seq_length//P, hidden_dim, device=my_device, dtype=type)
     Q = torch.ones(num_heads, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
     K = torch.ones_like(Q)
     V  = torch.ones_like(Q)
     proj = torch.ones(num_heads, hidden_dim//num_heads, hidden_dim, device=my_device, dtype=type)
-    output = torch.empty_like(input)
     if my_rank == root_rank:
         print("\nUlysses attention")
         print(f"input [N/P, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
@@ -57,7 +53,6 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"K [h, d, d/h]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
         print(f"V [h, d, d/h]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
         print(f"proj [h, d/h, d]: {proj.shape}, elements: {proj.nelement()}, size: {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
-        print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size: {output.element_size() * output.nelement() / 1e9:.2f} GB")
     # compute q, k, v
     q = torch.matmul(input, Q) # [h, N/P, d/h]
     k = torch.matmul(input, K) # [h, N/P, d/h]
@@ -95,6 +90,20 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print("compute c")
         print(f"c [h/p, N, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    # all-to-all c
+    c_ = torch.empty(num_heads, seq_length//P, hidden_dim//num_heads, device=my_device, dtype=type)
+    if my_rank == root_rank:
+        print("all-to-all c")
+        print(f"c_ [h, N/P, d/h]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    dist.all_to_all_single(c_, c)
+    # compute output
+    output = torch.matmul(c_, proj)
+    if my_rank == root_rank:
+        print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e9:.2f} GB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    return output
+
 
 
 def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch.Tensor:
