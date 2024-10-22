@@ -87,7 +87,7 @@ v = torch.matmul(input, V_)
 
 if my_rank == root_rank:
     print("compute q, k, v")
-    print(f"DxQ=q + DxK=k + DxV=v flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e9:.2f} GFLOPs")
+    print(f"inputxQ=q + inputxK=k + inputxV=v flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
     # print(q)
     print(f"q shape: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
     # print(k)
@@ -119,7 +119,7 @@ if my_rank == root_rank:
 A = torch.matmul(q, k_.transpose(1, 2))
 if my_rank == root_rank:
     print("compute attention")
-    print(f"A=qxk' flops: {2 * seq_length * seq_length * hidden_dim /1e9:.2f} GFLOPs")
+    print(f"A=qxk' flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
     # print(A)
     print(f"A shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
