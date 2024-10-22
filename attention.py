@@ -17,8 +17,8 @@ type = torch.bfloat16
 # num_layers = 126
 
 # parallelization parameters
-HP = 2 # parallelize among heads (embarrassimgly parallel)
-SP = 8 # parallelize among sequence length (communication)
+HP = 16 # parallelize among heads (embarrassimgly parallel)
+SP = 1 # parallelize among sequence length (communication)
 
 P = HP * SP
 assert P == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
@@ -142,11 +142,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
     # calculate softmax
-    A = torch.nn.functional.softmax(A, dim=-1) # softmax along rows of A
-    # in-place softmax
-    # torch.exp(A, out=A)
-    # summed = torch.sum(A, dim=1, keepdim=True)
-    # A /= summed
+    # A = torch.nn.functional.softmax(A, dim=-1) # softmax along rows of A
 
     c = torch.matmul(A, v_)
     if my_rank == root_rank:
