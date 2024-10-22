@@ -135,7 +135,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
     # compute attention
-    A = torch.matmul(q, k_.transpose(1, 2))
+    A = torch.matmul(q, k_.transpose(2, 3))
     if my_rank == root_rank:
         print("compute attention")
         print(f"A=qxk' flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
