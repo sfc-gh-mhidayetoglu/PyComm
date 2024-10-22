@@ -81,6 +81,8 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     ranks = [i for i in range(world_size) if i // SP == my_rank // SP]
     # print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
     group_TP = dist.new_group(ranks, use_local_synchronization=True)
+    ranks = [i for i in range(world_size) if i // HP == my_rank // HP]
+    group_HP = dist.new_group(ranks, use_local_synchronization=True)
 
     Q_ = torch.empty(SP, num_heads//HP, hidden_dim//SP, hidden_dim//num_heads, device=my_device, dtype=type)
     K_ = torch.empty_like(Q_)
@@ -179,6 +181,8 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     if my_rank == root_rank:
         print(f"output shape: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+
+    dist.all_reduce(output, group=group_HP)
 
     return output
 
