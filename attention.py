@@ -10,7 +10,7 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 50000 # 10000 # 100000
+seq_length = 10000 # 10000 # 100000
 hidden_dim = 16384
 num_heads = 128
 type = torch.bfloat16
