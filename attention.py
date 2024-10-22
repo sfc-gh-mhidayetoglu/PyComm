@@ -56,19 +56,25 @@ ranks = [i for i in range(world_size) if i // SP == my_rank // SP]
 print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 
-Q_ = torch.empty(hidden_dim, num_heads//HP, hidden_dim//num_heads, device=my_device)
+Q_ = torch.empty(num_heads//HP, hidden_dim, hidden_dim//num_heads, device=my_device)
+K_ = torch.empty_like(Q_)
+V_ = torch.empty_like(Q_)
 dist.all_gather_into_tensor(Q_, Q, group=group_TP)
+dist.all_gather_into_tensor(K_, Q, group=group_TP)
+dist.all_gather_into_tensor(V_, Q, group=group_TP)
 
 if my_rank == root_rank:
     print(f"Q_ shape: {Q_.shape}, elements: {Q_.nelement()}, size: {Q_.element_size() * Q_.nelement() / 1e6:.2f} MB")
+    print(f"K_ shape: {K_.shape}, elements: {K_.nelement()}, size: {K_.element_size() * K_.nelement() / 1e6:.2f} MB")
+    print(f"V_ shape: {V_.shape}, elements: {V_.nelement()}, size: {V_.element_size() * V_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
-exit()
-
 # compute Q, K, V
-q = torch.matmul(input, Q) # [h/p, N, d/h]
-k = torch.matmul(input, K) # [h/p, N, d/h]
-v = torch.matmul(input, V) # [h/p, N, d/h]
+q = torch.matmul(input, Q_)
+k = torch.matmul(input, K_)
+v = torch.matmul(input, V_)
+
+exit()
 
 if my_rank == root_rank:
     print(f"DxQ=q + DxK=k + DxV=v flops: {num_heads // HP * 3 * (2 * seq_length // SP * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
