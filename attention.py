@@ -39,30 +39,56 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
     # input [N/P, d]
     # Q, K, V [h, d, d/h]
+    # q, k, v [h, N/P, d/h]
+    # A [h/P, N, N]
+    # c [h, N/P, d/h]
     # proj [h, d/h, d]
-    input = torch.randn(seq_length // P, hidden_dim, device=my_device, dtype=type)
-    Q = torch.ones(num_heads, hidden_dim, hidden_dim // num_heads, device=my_device, dtype=type)
+    # output [N/P, d]
+    input = torch.randn(seq_length//P, hidden_dim, device=my_device, dtype=type)
+    Q = torch.ones(num_heads, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
     K = torch.ones_like(Q)
     V  = torch.ones_like(Q)
-    proj = torch.ones(num_heads, hidden_dim // num_heads, hidden_dim, device=my_device, dtype=type)
+    proj = torch.ones(num_heads, hidden_dim//num_heads, hidden_dim, device=my_device, dtype=type)
+    output = torch.empty_like(input)
     if my_rank == root_rank:
         print("\nUlysses attention")
-        print(f"input: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
-        print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
-        print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
-        print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
-        print(f"proj shape: {proj.shape}, elements: {proj.nelement()}, size: {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
-
+        print(f"input [N/P, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
+        print(f"Q [h, d, d/h]: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
+        print(f"K [h, d, d/h]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
+        print(f"V [h, d, d/h]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
+        print(f"proj [h, d/h, d]: {proj.shape}, elements: {proj.nelement()}, size: {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
+        print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size: {output.element_size() * output.nelement() / 1e9:.2f} GB")
     # compute q, k, v
-    q = torch.matmul(input, Q)
-    k = torch.matmul(input, K)
-    v = torch.matmul(input, V)
+    q = torch.matmul(input, Q) # [h, N/P, d/h]
+    k = torch.matmul(input, K) # [h, N/P, d/h]
+    v = torch.matmul(input, V) # [h, N/P, d/h]
     if my_rank == root_rank:
         print("compute q, k, v")
-        print(f"inputxQ=q + inputxK=k + inputxV=v flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
-        print(f"q shape: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
-        print(f"k shape: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e6:.2f} MB")
-        print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
+        print(f"q=inputxQ + k=inputxK + v=inputxV flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
+        print(f"q [h, N/P, d/h]: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
+        print(f"k [h, N/P, d/h]: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e6:.2f} MB")
+        print(f"v [h, N/P, d/h]: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    # all-to-all q, k, v
+    q_ = torch.empty(num_heads//P, seq_length, hidden_dim//num_heads, device=my_device, dtype=type)
+    k_ = torch.empty_like(q_)
+    v_ = torch.empty_like(q_)
+    if my_rank == root_rank:
+        print("all-to-all q, k, v")
+        print(f"q_ [h/P, N, d/h]: {q_.shape}, elements: {q_.nelement()}, size {q_.element_size() * q_.nelement() / 1e6:.2f} MB")
+        print(f"k_ [h/P, N, d/h]: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
+        print(f"v_ [h/P, N, d/h]: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    dist.all_to_all_single(q_, q)
+    dist.all_to_all_single(k_, k)
+    dist.all_to_all_single(v_, v)
+
+    # compute attention
+    A = torch.matmul(q_, k_.transpose(1, 2))
+    if my_rank == root_rank:
+        print("compute attention")
+        print(f"A=qxk' flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
+        print(f"A [h/P, N, N]: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 
