@@ -99,12 +99,9 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     dist.all_gather_into_tensor(K_, Q, group=group_TP)
     dist.all_gather_into_tensor(V_, Q, group=group_TP)
     # transpose
-    Q_.transpose(0, 1)
-    K_.transpose(0, 1)
-    V_.transpose(0, 1)
-    Q_ = torch.reshape(Q_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
-    K_ = torch.reshape(K_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
-    V_ = torch.reshape(V_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+    Q_ = torch.reshape(Q_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+    K_ = torch.reshape(K_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+    V_ = torch.reshape(V_.transpose(0, 1), (num_heads//HP, hidden_dim, hidden_dim//num_heads))
 
     if my_rank == root_rank:
         print("reshape Q_, K_, V_")
@@ -138,10 +135,8 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     dist.all_gather_into_tensor(v_, v, group=group_TP)
 
     # transpose k_ and v_
-    k_.transpose(0, 1)
-    v_.transpose(0, 1)
-    k_ = torch.reshape(k_, (num_heads//HP, seq_length, hidden_dim//num_heads))
-    v_ = torch.reshape(v_, (num_heads//HP, seq_length, hidden_dim//num_heads))
+    k_ = torch.reshape(k_.transpose(0, 1), (num_heads//HP, seq_length, hidden_dim//num_heads))
+    v_ = torch.reshape(v_.transpose(0, 1), (num_heads//HP, seq_length, hidden_dim//num_heads))
     if my_rank == root_rank:
         print("transpose k_ and v_")
         print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
@@ -167,8 +162,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         print(f"c shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
-    c.transpose(0, 2)
-    c = torch.reshape(c, (seq_length, hidden_dim//HP))
+    c = torch.reshape(c.transpose(0, 2), (seq_length, hidden_dim//HP))
     if my_rank == root_rank:
         print("transpose c")
         print(f"c shape: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
