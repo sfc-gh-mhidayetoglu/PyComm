@@ -10,7 +10,7 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 131072 # 10000 # 100000
+seq_length = 8192 # 10000 # 100000
 hidden_dim = 16384
 num_layers = 126
 num_heads = 128
@@ -60,7 +60,7 @@ if my_rank == root_rank:
     print(f"flops: {3 * (2 * seq_length * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
 
 # compute attention
-A = torch.matmul(q, k.transpose(1, 2))
+A = torch.matmul(q, k.transpose(1, 2)) # [h/p, N, N]
 if my_rank == root_rank:
     print(A)
     print(f"attention shape: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
