@@ -17,8 +17,8 @@ num_heads = 128
 type = torch.bfloat16
 
 # parallelization parameters
-HP = 1 # parallelize among heads (embarrassimgly parallel)
-SP = 16 # parallelize among sequence length (communication)
+HP = 16 # parallelize among heads (embarrassimgly parallel)
+SP = 1 # parallelize among sequence length (communication)
 assert HP * SP == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
 
 # report parameters
