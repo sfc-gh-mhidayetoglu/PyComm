@@ -87,8 +87,7 @@ if my_rank == root_rank:
     print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 dist.all_gather_into_tensor(k_, k, group=group_TP)
-
-exit()
+k_.reshape(num_heads//HP, hidden_dim, hidden_dim//num_heads)
 
 # compute attention
 A = torch.matmul(q, k_.transpose(1, 2))
