@@ -17,8 +17,8 @@ type = torch.bfloat16
 # num_layers = 126
 
 # parallelization parameters
-HP = 1 # parallelize among heads (embarrassimgly parallel)
-SP = 16 # parallelize among sequence length (communication)
+HP = 2 # parallelize among heads (embarrassimgly parallel)
+SP = 8 # parallelize among sequence length (communication)
 
 P = HP * SP
 assert P == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
@@ -34,6 +34,14 @@ if my_rank == root_rank:
     print("SP: " + str(SP) + " sequence parallelism")
     print("P = HP x SP: " + str(HP * SP))
     print("head per GPU: " + str(num_heads//HP) + "tokens per GPU: " + str(seq_length//SP) + "\n")
+
+def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
+    # initialize input and model
+    # input [N/SP, d]
+    input = torch.randn(seq_length // P, hidden_dim, device=my_device, dtype=type) # [N/SP, d]
+    Q = torch.ones(num_heads, hidden_dim // SP, hidden_dim // num_heads, device=my_device, dtype=type) # [h/HP, d/SP, d/h]
+    K = torch.ones_like(Q) # [d/SP, h/HP, d/h]
+    V  = torch.ones_like(Q) # [d/SP, h/HP, d/h]
 
 def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch.Tensor:
     # initialize input and model
