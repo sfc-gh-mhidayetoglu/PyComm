@@ -74,8 +74,6 @@ q = torch.matmul(input, Q_)
 k = torch.matmul(input, K_)
 v = torch.matmul(input, V_)
 
-exit()
-
 if my_rank == root_rank:
     print(f"DxQ=q + DxK=k + DxV=v flops: {num_heads // HP * 3 * (2 * seq_length // SP * hidden_dim * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
     # print(q)
