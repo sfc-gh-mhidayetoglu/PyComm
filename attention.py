@@ -93,7 +93,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     c = torch.matmul(A, v_)
     if my_rank == root_rank:
         print("compute c")
-        print(f"c [h, N/P, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
+        print(f"c [h/p, N, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
 
