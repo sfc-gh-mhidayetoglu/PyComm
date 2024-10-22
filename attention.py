@@ -80,9 +80,9 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     dist.all_gather_into_tensor(K_, Q, group=group_TP)
     dist.all_gather_into_tensor(V_, Q, group=group_TP)
     # transpose
-    Q_ = Q_.transpose(0, 1)
-    K_ = K_.transpose(0, 1)
-    V_ = V_.transpose(0, 1)
+    Q_.transpose(0, 1)
+    K_.transpose(0, 1)
+    V_.transpose(0, 1)
     Q_ = torch.reshape(Q_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
     K_ = torch.reshape(K_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
     V_ = torch.reshape(V_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
