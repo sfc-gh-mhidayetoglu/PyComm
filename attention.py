@@ -49,6 +49,19 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
         print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
 
+    # compute q, k, v
+    q = torch.matmul(input, Q)
+    k = torch.matmul(input, K)
+    v = torch.matmul(input, V)
+    if my_rank == root_rank:
+        print("compute q, k, v")
+        print(f"inputxQ=q + inputxK=k + inputxV=v flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
+        print(f"q shape: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
+        print(f"k shape: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e6:.2f} MB")
+        print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
+        print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+
+
 def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch.Tensor:
     # initialize input and model
     # input [N/SP, d]
