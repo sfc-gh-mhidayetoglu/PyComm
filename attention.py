@@ -10,7 +10,7 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 5000 # 10000 # 100000
+seq_length = 10000 # 10000 # 100000
 hidden_dim = 16384
 num_layers = 126
 num_heads = 128
@@ -54,7 +54,8 @@ ranks = [i for i in range(world_size) if i // SP == my_rank // SP]
 print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
 group_TP = dist.new_group(ranks, use_local_synchronization=True)
 
-Q_ = torch.empty(num_heads//HP, hidden_dim, hidden_dim//num_heads, device=my_device)
+# Q_ = torch.empty(num_heads//HP, hidden_dim, hidden_dim//num_heads, device=my_device)
+Q_ = torch.empty(SP, num_heads//HP, hidden_dim//SP, hidden_dim//num_heads, device=my_device)
 K_ = torch.empty_like(Q_)
 V_ = torch.empty_like(Q_)
 dist.all_gather_into_tensor(Q_, Q, group=group_TP)
