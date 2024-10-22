@@ -83,9 +83,12 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     Q_.transpose(0, 1)
     K_.transpose(0, 1)
     V_.transpose(0, 1)
-    Q_ = torch.reshape(Q_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
-    K_ = torch.reshape(K_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
-    V_ = torch.reshape(V_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+    Q_.reshape(num_heads//HP, hidden_dim, hidden_dim//num_heads)
+    K_.reshape(num_heads//HP, hidden_dim, hidden_dim//num_heads)
+    V_.reshape(num_heads//HP, hidden_dim, hidden_dim//num_heads)
+    # Q_ = torch.reshape(Q_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+    # K_ = torch.reshape(K_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
+    # V_ = torch.reshape(V_, (num_heads//HP, hidden_dim, hidden_dim//num_heads))
 
     if my_rank == root_rank:
         print("reshape Q_, K_, V_")
