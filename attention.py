@@ -136,8 +136,8 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     # transpose k_ and v_
     k_.transpose(0, 1)
     v_.transpose(0, 1)
-    k_.reshape((num_heads//HP, seq_length, hidden_dim//num_heads))
-    v_.reshape((num_heads//HP, seq_length, hidden_dim//num_heads))
+    k_ = torch.reshape(k_, (num_heads//HP, seq_length, hidden_dim//num_heads))
+    v_ = torch.reshape(v_, (num_heads//HP, seq_length, hidden_dim//num_heads))
     if my_rank == root_rank:
         print("transpose k_ and v_")
         print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
