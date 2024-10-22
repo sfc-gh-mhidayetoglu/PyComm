@@ -17,8 +17,8 @@ type = torch.bfloat16
 # num_layers = 126
 
 # parallelization parameters
-HP = 16 # parallelize among heads (embarrassimgly parallel)
-SP = 1 # parallelize among sequence length (communication)
+HP = 1 # parallelize among heads (embarrassimgly parallel)
+SP = 16 # parallelize among sequence length (communication)
 
 P = HP * SP
 assert P == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
@@ -59,13 +59,9 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     V  = torch.ones_like(Q)
 
     if my_rank == root_rank:
-        # print(input)
         print(f"input: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e8:.2f} GB")
-        # print(Q)
         print(f"Q shape: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
-        # print(K)
         print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
-        # print(V)
         print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
 
     # Create group communicators
@@ -73,7 +69,6 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     # print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
     group_TP = dist.new_group(ranks, use_local_synchronization=True)
 
-    # Q_ = torch.empty(num_heads//HP, hidden_dim, hidden_dim//num_heads, device=my_device)
     Q_ = torch.empty(SP, num_heads//HP, hidden_dim//SP, hidden_dim//num_heads, device=my_device, dtype=type)
     K_ = torch.empty_like(Q_)
     V_ = torch.empty_like(Q_)
@@ -106,11 +101,8 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
     if my_rank == root_rank:
         print("compute q, k, v")
         print(f"inputxQ=q + inputxK=k + inputxV=v flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
-        # print(q)
         print(f"q shape: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
-        # print(k)
         print(f"k shape: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e6:.2f} MB")
-        # print(v)
         print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
