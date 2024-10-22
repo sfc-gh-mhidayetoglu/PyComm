@@ -16,11 +16,9 @@ num_layers = 126
 num_heads = 128
 
 # parallelization parameters
-HP = 2
-SP = 8
+HP = 2 # parallelize among heads (embarrassimgly parallel)
+SP = 8 # parallelize among sequence length (communication)
 assert HP * SP == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
-
-
 
 # report parameters
 if my_rank == root_rank:
@@ -84,10 +82,16 @@ if my_rank == root_rank:
     print(f"v shape: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
     print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
 
+k_ = torch.empty(num_heads//HP, hidden_dim, hidden_dim//num_heads, device=my_device)
+dist.all_gather_into_tensor(k_, k, group=group_TP)
+if my_rank == root_rank:
+    print(f"k_ shape: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
+    print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+
 exit()
 
 # compute attention
-A = torch.matmul(q, k.transpose(1, 2)) # [h/p, N, N]
+A = torch.matmul(q, k_.transpose(1, 2))
 if my_rank == root_rank:
     print(f"A=qxk' flops: {num_heads // HP * 2 * (seq_length * seq_length * hidden_dim // num_heads)/1e9:.2f} GFLOPs")
     # print(A)
