@@ -86,7 +86,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"A [h/P, N, N]: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     # softmax A
-    A = torch.nn.functional.softmax(A, dim=-1)
+    # A = torch.nn.functional.softmax(A, dim=-1) runs out of memory
     # compute c
     c = torch.matmul(A, v_)
     if my_rank == root_rank:
