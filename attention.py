@@ -16,8 +16,8 @@ num_layers = 126
 num_heads = 128
 
 # parallelization parameters
-HP = 8
-SP = 2
+HP = 2
+SP = 16
 assert HP * SP == world_size, f"HP x SP must equal world_size, but got HP={HP}, SP={SP}, world_size={world_size}"
 
 
