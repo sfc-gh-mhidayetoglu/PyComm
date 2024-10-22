@@ -29,14 +29,15 @@ if my_rank == root_rank:
     print("hidden dim: " + str(hidden_dim))
     print("num layers: " + str(num_layers))
     print("num heads: " + str(num_heads))
-    print("HP: " + str(HP))
-    print("SP: " + str(SP))
+    print("HP: " + str(HP) + " head parallelism")
+    print("SP: " + str(SP) + " sequence parallelism")
+    print("HP x SP: " + str(HP * SP) + " world size\n")
     print("head per GPU: " + str(num_heads//HP) + "tokens per GPU: " + str(seq_length//SP) + "\n")
 
 # initialize input and model
 # input [N/SP, d]
 input = torch.randn(seq_length // SP, hidden_dim, device=my_device) 
-Q = torch.ones(num_heads // HP, hidden_dim // SP, hidden_dim // num_heads, device=my_device)
+Q = torch.ones(hidden_dim // SP, num_heads // HP, hidden_dim // num_heads, device=my_device)
 K = torch.ones_like(Q)
 V  = torch.ones_like(Q)
 
@@ -49,6 +50,16 @@ if my_rank == root_rank:
     print(f"K shape: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
     # print(V)
     print(f"V shape: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
+
+# Create group communicators
+ranks = [i for i in range(world_size) if i // SP == my_rank // SP]
+print("myid: " + str(my_rank) + " ranks " + str(ranks) + "\n")
+group_TP = dist.new_group(ranks, use_local_synchronization=True)
+
+Q_ = torch.empty(hidden_dim, num_heads//HP, hidden_dim//num_heads, device=my_device)
+dist.all_gather(Q_, Q, group=group_TP)
+
+exit()
 
 # compute Q, K, V
 q = torch.matmul(input, Q) # [h/p, N, d/h]
