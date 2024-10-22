@@ -30,6 +30,7 @@ if my_rank == root_rank:
     print("hidden dim: " + str(hidden_dim))
     # print("num layers: " + str(num_layers))
     print("num heads: " + str(num_heads))
+    print("type: " + str(type))
     print("HP: " + str(HP) + " head parallelism")
     print("SP: " + str(SP) + " sequence parallelism")
     print("P = HP x SP: " + str(HP * SP))
@@ -39,7 +40,6 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
     # input [N/P, d]
     # Q, K, V [h, d, d/h]
-    # q, k, v [h, N/P, d/h]
     # proj [h, d/h, d]
     input = torch.randn(seq_length//P, hidden_dim, device=my_device, dtype=type)
     Q = torch.ones(num_heads, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
@@ -91,13 +91,15 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"c [h/p, N, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     # all-to-all c
-    c_ = torch.empty(num_heads, seq_length//P, hidden_dim//num_heads, device=my_device, dtype=type)
+    c_ = torch.empty(seq_length//P, num_heads, hidden_dim//num_heads, device=my_device, dtype=type)
     if my_rank == root_rank:
         print("all-to-all c")
-        print(f"c_ [h, N/P, d/h]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
+        print(f"c_ [N/P, h, d/h]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     dist.all_to_all_single(c_, c)
     # compute output
+    c_ = torch.reshape(c_, (seq_length//P, hidden_dim))
+    proj = torch.reshape(proj, (hidden_dim, hidden_dim))
     output = torch.matmul(c_, proj)
     if my_rank == root_rank:
         print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e9:.2f} GB")
