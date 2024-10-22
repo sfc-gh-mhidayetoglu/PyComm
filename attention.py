@@ -10,12 +10,10 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 100 # 10000 # 100000
-hidden_dim = 64 # 16384
+seq_length = 131072 # 10000 # 100000
+hidden_dim = 16384
 num_layers = 126
-
-# parallelization parameters
-num_heads = 16
+num_heads = 128
 
 # report parameters
 if my_rank == root_rank:
@@ -24,6 +22,8 @@ if my_rank == root_rank:
     print("hidden dim: " + str(hidden_dim))
     print("num layers: " + str(num_layers))
     print("num heads: " + str(num_heads))
+
+return
 
 # initialize input and model
 input = torch.randn(seq_length, hidden_dim, device=my_device)
