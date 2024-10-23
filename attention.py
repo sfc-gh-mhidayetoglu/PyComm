@@ -27,10 +27,7 @@ if my_rank == root_rank:
     # print("num layers: " + str(num_layers))
     print("num heads: " + str(num_heads))
     print("type: " + str(type))
-    print("HP: " + str(HP) + " head parallelism")
-    print("SP: " + str(SP) + " sequence parallelism")
-    print("head per GPU: " + str(num_heads//HP) + " tokens per GPU: " + str(seq_length//SP))
-    print("P = HP x SP: " + str(HP * SP))
+    print("P: " + str(P))
     print("head per GPU: " + str(num_heads//P) + " tokens per GPU: " + str(seq_length//P))
 
 def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
