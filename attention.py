@@ -13,7 +13,7 @@ root_rank = 7
 seq_length = 60000 # 10000 # 100000
 hidden_dim = 16384
 num_heads = 128
-type = torch.bfloat16
+type = torch.bfloat8
 # num_layers = 126
 
 # parallelization parameters
