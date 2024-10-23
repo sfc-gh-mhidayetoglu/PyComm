@@ -76,9 +76,12 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"v_ [P, h/P, N/P, d/h]: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-    q_ = torch.reshape(q_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
-    k_ = torch.reshape(k_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
-    v_ = torch.reshape(v_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
+    q_ = torch.transpose(q_, 0, 1)
+    k_ = torch.transpose(k_, 0, 1)
+    v_ = torch.transpose(v_, 0, 1)
+    # q_ = torch.reshape(q_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
+    # k_ = torch.reshape(k_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
+    # v_ = torch.reshape(v_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
     if my_rank == root_rank:
         print("transpose & reshape q_, k_, v_")
         print(f"q_ [h/P, N, d/h]: {q_.shape}, elements: {q_.nelement()}, size {q_.element_size() * q_.nelement() / 1e6:.2f} MB")
@@ -109,16 +112,14 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"is_contiguous: {c.is_contiguous()}")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    # all-to-all c
     c = torch.transpose(c, 0, 1)
-    # c = torch.reshape(c, (seq_length, num_heads//P, hidden_dim//num_heads))
     if my_rank == root_rank:
         print("transpose c")
         print(f"c [N, h/P, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"is_contiguous: {c.is_contiguous()}")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-    return None
-    # all-to-all c
     c_ = torch.empty(P, seq_length//P, num_heads//P, hidden_dim//num_heads, device=my_device, dtype=type)
     dist.all_to_all_single(c_, c)
     if my_rank == root_rank:
