@@ -73,9 +73,6 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     q_ = torch.empty(P, num_heads//P, seq_length//P, hidden_dim//num_heads, device=my_device, dtype=type)
     k_ = torch.empty_like(q_)
     v_ = torch.empty_like(q_)
-    dist.all_to_all_single(q_, q)
-    dist.all_to_all_single(k_, k)
-    dist.all_to_all_single(v_, v)
     if my_rank == root_rank:
         print("all-to-all q, k, v")
         print(f"q_ [P, h/P, N/P, d/h]: {q_.shape}, elements: {q_.nelement()}, size {q_.element_size() * q_.nelement() / 1e6:.2f} MB")
@@ -83,6 +80,9 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"v_ [P, h/P, N/P, d/h]: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    dist.all_to_all_single(q_, q)
+    dist.all_to_all_single(k_, k)
+    dist.all_to_all_single(v_, v)
     q_ = torch.reshape(q_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
     k_ = torch.reshape(k_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
     v_ = torch.reshape(v_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
@@ -114,7 +114,6 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     c = torch.reshape(c.transpose(0, 1), (seq_length, num_heads//P, hidden_dim//num_heads))
-    # c = torch.permute(c, (1, 0, 2))
     if my_rank == root_rank:
         print("transpose c")
         print(f"c [N, h/P, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
