@@ -113,7 +113,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"c [h/P, N, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-    c = torch.reshape(torch.transpose(c, (0, 1)), (seq_length, num_heads//P, hidden_dim//num_heads))
+    c = torch.reshape(torch.transpose(c, 0, 1), (seq_length, num_heads//P, hidden_dim//num_heads))
     print(c.is_contiguous())
     # c.transpose(0, 1)
     # c.permute(1, 0, 2)
