@@ -114,6 +114,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     c = torch.reshape(c.permute(1, 0, 2), (seq_length, num_heads//P, hidden_dim//num_heads))
+    print(c.is_contiguous())
     # c.transpose(0, 1)
     # c.permute(1, 0, 2)
     if my_rank == root_rank:
