@@ -79,9 +79,9 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     q_ = torch.transpose(q_, 0, 1)
     k_ = torch.transpose(k_, 0, 1)
     v_ = torch.transpose(v_, 0, 1)
-    # q_ = torch.reshape(q_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
-    # k_ = torch.reshape(k_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
-    # v_ = torch.reshape(v_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
+    torch.reshape(q_, (num_heads//P, seq_length, hidden_dim//num_heads))
+    torch.reshape(k_, (num_heads//P, seq_length, hidden_dim//num_heads))
+    torch.reshape(v_, (num_heads//P, seq_length, hidden_dim//num_heads))
     if my_rank == root_rank:
         print("transpose & reshape q_, k_, v_")
         print(f"q_ [h/P, N, d/h]: {q_.shape}, elements: {q_.nelement()}, size {q_.element_size() * q_.nelement() / 1e6:.2f} MB")
