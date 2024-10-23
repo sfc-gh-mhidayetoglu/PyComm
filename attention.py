@@ -60,7 +60,8 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     v = torch.matmul(input, V) # [h, N/P, d/h]
     if my_rank == root_rank:
         print("compute q, k, v")
-        print(f"q = input x Q, k = input x K, v = input x V flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
+        print(f"q = input x Q, k = input x K, v = input x V")
+        print(f"flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
         print(f"q [h, N/P, d/h]: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
         print(f"k [h, N/P, d/h]: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e6:.2f} MB")
         print(f"v [h, N/P, d/h]: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
@@ -82,7 +83,8 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     A = torch.matmul(q_, k_.transpose(1, 2))
     if my_rank == root_rank:
         print("compute attention")
-        print(f"A = q x k' flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
+        print(f"A = q x k'")
+        print(f"flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
         print(f"A [h/P, N, N]: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     # softmax A
@@ -91,7 +93,8 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     c = torch.matmul(A, v_)
     if my_rank == root_rank:
         print("compute c")
-        print(f"c = A x v flops: {2 * seq_length * seq_length * hidden_dim / 1e12:.2f} TFLOPs")
+        print(f"c = A x v")
+        print(f"flops: {2 * seq_length * seq_length * hidden_dim / 1e12:.2f} TFLOPs")
         print(f"c [h/p, N, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     # all-to-all c
@@ -107,12 +110,11 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     output = torch.matmul(c_, proj)
     if my_rank == root_rank:
         print("compute output")
-        print(f"output = c x proj flops: {2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
+        print(f"output = c x proj")
+        print(f"flops: {2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
         print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e9:.2f} GB")
         print(f"Torch memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     return output
-
-
 
 def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch.Tensor:
     # initialize input and model
