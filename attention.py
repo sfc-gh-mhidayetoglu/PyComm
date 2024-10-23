@@ -134,7 +134,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"c_ [N/P, d]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
         print(f"proj [d, d]: {proj.shape}, elements: {proj.nelement()}, size {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
-        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated / 1e9:.2f} GB")
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     # compute output
     output = torch.matmul(c_, proj)
     if my_rank == root_rank:
