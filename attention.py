@@ -87,7 +87,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     k_ = torch.reshape(k_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
     v_ = torch.reshape(v_.transpose(0, 1), (num_heads//P, seq_length, hidden_dim//num_heads))
     if my_rank == root_rank:
-        print("transpose q_, k_, v_")
+        print("reshape q_, k_, v_")
         print(f"q_ [h/P, N, d/h]: {q_.shape}, elements: {q_.nelement()}, size {q_.element_size() * q_.nelement() / 1e6:.2f} MB")
         print(f"k_ [h/P, N, d/h]: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
         print(f"v_ [h/P, N, d/h]: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
@@ -130,7 +130,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     c_ = torch.reshape(c_.transpose(0, 1), (seq_length//P, hidden_dim))
     proj = torch.reshape(proj, (hidden_dim, hidden_dim))
     if my_rank == root_rank:
-        print("transpose c_ and reshape projection")
+        print("transpose & reshape c_ and reshape projection")
         print(f"c_ [N/P, d]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
         print(f"proj [d, d]: {proj.shape}, elements: {proj.nelement()}, size {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
