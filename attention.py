@@ -70,7 +70,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     dist.all_to_all_single(k_, k)
     dist.all_to_all_single(v_, v)
     if my_rank == root_rank:
-        print("all-to-all q, k, v")
+        print("q_, k_, v_ = all-to-all q, k, v")
         print(f"q_ [P, h/P, N/P, d/h]: {q_.shape}, elements: {q_.nelement()}, size {q_.element_size() * q_.nelement() / 1e6:.2f} MB")
         print(f"k_ [P, h/P, N/P, d/h]: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
         print(f"v_ [P, h/P, N/P, d/h]: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
@@ -94,7 +94,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     A = torch.matmul(q_, torch.transpose(k_, 1, 2))
     if my_rank == root_rank:
         print("compute attention")
-        print(f"A = q x k_t")
+        print(f"A = q_ x k_t")
         print(f"flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
         print(f"A [h/P, N, N]: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
         print(f"is_contiguous: {A.is_contiguous()}")
@@ -106,7 +106,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     c = torch.matmul(A, v_)
     if my_rank == root_rank:
         print("compute c")
-        print(f"c = A x v")
+        print(f"c = A x v_")
         print(f"flops: {2 * seq_length * seq_length * hidden_dim / 1e12:.2f} TFLOPs")
         print(f"c [h/P, N, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"is_contiguous: {c.is_contiguous()}")
@@ -123,7 +123,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     c_ = torch.empty(P, seq_length//P, num_heads//P, hidden_dim//num_heads, device=my_device, dtype=type)
     dist.all_to_all_single(c_, c)
     if my_rank == root_rank:
-        print("all-to-all c")
+        print("c_ = all-to-all c")
         print(f"c_ [P, N/P, h/P, d/h]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
