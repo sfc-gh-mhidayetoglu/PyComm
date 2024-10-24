@@ -238,12 +238,13 @@ def ulysses_allgather(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     # compute output
-    output = torch.matmul(c, O)
+    output = torch.matmul(c, torch.reshape(O, (hidden_dim, hidden_dim)))
     if my_rank == root_rank:
         print("compute output")
         print(f"output = c x O")
         print(f"flops: {2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
         print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e6:.2f} MB")
+        print(f"is_contiguous: {output.is_contiguous()}")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     return None
