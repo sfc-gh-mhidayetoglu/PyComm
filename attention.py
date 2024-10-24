@@ -114,7 +114,6 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     # all-to-all c
     c = torch.transpose(c, 0, 1)
-    # c = torch.reshape(c, (seq_length, num_heads//P, hidden_dim//num_heads))
     if my_rank == root_rank:
         print("transpose c")
         print(f"c [N, h/P, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
@@ -133,6 +132,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     if my_rank == root_rank:
         print("transpose & reshape c_ and reshape projection")
         print(f"c_ [N/P, d]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
+        print(f"is_contiguous: {c_.is_contiguous()}")
         print(f"proj [d, d]: {proj.shape}, elements: {proj.nelement()}, size {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
