@@ -14,7 +14,7 @@ seq_length = 60000 # 10000 # 100000
 hidden_dim = 16384
 num_heads = 128
 type = torch.bfloat16
-# num_layers = 126
+num_layers = 126
 
 # parallelization parameters
 P = world_size
@@ -39,7 +39,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     Q = torch.ones(num_heads, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
     K = torch.ones_like(Q)
     V  = torch.ones_like(Q)
-    proj = torch.ones(num_heads, hidden_dim//num_heads, hidden_dim, device=my_device, dtype=type)
+    O = torch.ones(num_heads, hidden_dim//num_heads, hidden_dim, device=my_device, dtype=type)
     if my_rank == root_rank:
         print("\nUlysses attention")
         print(f"input [N/P, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
@@ -129,16 +129,16 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     c_ = torch.transpose(c_, 0, 1)
     c_ = torch.reshape(c_, (seq_length//P, hidden_dim))
-    proj = torch.reshape(proj, (hidden_dim, hidden_dim))
+    O = torch.reshape(O, (hidden_dim, hidden_dim))
     if my_rank == root_rank:
-        print("transpose(0, 1) c_ & reshape c_ and projection")
+        print("transpose(0, 1) c_ & reshape c_ and O")
         print(f"c_ [N/P, d]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
         print(f"is_contiguous: {c_.is_contiguous()}")
-        print(f"proj [d, d]: {proj.shape}, elements: {proj.nelement()}, size {proj.element_size() * proj.nelement() / 1e6:.2f} MB")
+        print(f"O [d, d]: {O.shape}, elements: {O.nelement()}, size {O.element_size() * O.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     # compute output
-    output = torch.matmul(c_, proj)
+    output = torch.matmul(c_, O)
     if my_rank == root_rank:
         print("compute output")
         print(f"output = c x proj")
