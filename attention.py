@@ -117,10 +117,11 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     c = torch.reshape(c, (P, seq_length//P, num_heads//P, hidden_dim//num_heads))
     if my_rank == root_rank:
         print("transpose c")
-        print(f"c [N, h/P, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
+        print(f"c [P, N/P, h/P, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
         print(f"is_contiguous: {c.is_contiguous()}")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    return None
     c_ = torch.empty(P, seq_length//P, num_heads//P, hidden_dim//num_heads, device=my_device, dtype=type)
     dist.all_to_all_single(c_, c)
     if my_rank == root_rank:
