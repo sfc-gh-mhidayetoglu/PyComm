@@ -371,7 +371,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         else:
             print("c and c_ are not equal.")
 
-ulysses(seq_length, hidden_dim, num_heads, P)
+# ulysses(seq_length, hidden_dim, num_heads, P)
 ulysses_allgather(seq_length, hidden_dim, num_heads, P)
 # ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
 
