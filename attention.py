@@ -372,6 +372,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
             print("c and c_ are not equal.")
 
 ulysses(seq_length, hidden_dim, num_heads, P)
+torch.cuda.synchronize()
 torch.cuda.empty_cache()
 ulysses_allgather(seq_length, hidden_dim, num_heads, P)
 # ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
