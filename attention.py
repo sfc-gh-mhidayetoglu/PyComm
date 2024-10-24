@@ -228,6 +228,14 @@ def ulysses_allgather(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"is_contiguous: {c.is_contiguous()}")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    # transpose c
+    c = torch.transpose(c, 0, 1)#.contiguous()
+    if my_rank == root_rank:
+        print("transpose(0, 1) c")
+        print(f"c [N, h, d/h]: {c.shape}, elements: {c.nelement()}, size {c.element_size() * c.nelement() / 1e6:.2f} MB")
+        print(f"is_contiguous: {c.is_contiguous()}")
+        torch.cuda.synchronize()
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     return None
 
 
