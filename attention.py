@@ -141,7 +141,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     output = torch.matmul(c_, O)
     if my_rank == root_rank:
         print("compute output")
-        print(f"output = c x proj")
+        print(f"output = c x O")
         print(f"flops: {2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
         print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
