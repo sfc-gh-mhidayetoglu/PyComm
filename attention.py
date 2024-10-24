@@ -10,11 +10,12 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 60000 # 10000 # 100000
-hidden_dim = 16384
-num_heads = 128
+seq_length = 60000  # N
+hidden_dim = 16384  # d
+num_heads = 128     # h
+inter_size = 53248  # d'
+num_layers = 126    # L
 type = torch.bfloat16
-num_layers = 126
 
 # parallelization parameters
 P = world_size
@@ -147,6 +148,53 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     return output
+
+def ulysses_allgather(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
+    # initialize input and model
+    # input [N/P, d]
+    # Q, K, V [h, d, d/h]
+    # proj [h, d/h, d]
+    input = torch.randn(seq_length//P, hidden_dim, device=my_device, dtype=type)
+    Q = torch.ones(num_heads, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
+    K = torch.ones_like(Q)
+    V  = torch.ones_like(Q)
+    O = torch.ones(num_heads, hidden_dim//num_heads, hidden_dim, device=my_device, dtype=type)
+    if my_rank == root_rank:
+        print("\n")
+        print("\nAll-gather attention")
+        print(f"input [N/P, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
+        print(f"Q [h, d, d/h]: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
+        print(f"K [h, d, d/h]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
+        print(f"V [h, d, d/h]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
+        print(f"O [h, d/h, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e6:.2f} MB")
+        torch.cuda.synchronize()
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    # compute q, k, v
+    q = torch.matmul(input, Q) # [h, N/P, d/h]
+    k = torch.matmul(input, K) # [h, N/P, d/h]
+    v = torch.matmul(input, V) # [h, N/P, d/h]
+    if my_rank == root_rank:
+        print("compute q, k, v")
+        print(f"q = input x Q, k = input x K, v = input x V")
+        print(f"flops: {3 * 2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
+        print(f"q [h, N/P, d/h]: {q.shape}, elements: {q.nelement()}, size {q.element_size() * q.nelement() / 1e6:.2f} MB")
+        print(f"k [h, N/P, d/h]: {k.shape}, elements: {k.nelement()}, size {k.element_size() * k.nelement() / 1e6:.2f} MB")
+        print(f"v [h, N/P, d/h]: {v.shape}, elements: {v.nelement()}, size {v.element_size() * v.nelement() / 1e6:.2f} MB")
+        torch.cuda.synchronize()
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    # all-gather k, v
+    k_ = torch.empty(P, num_heads, seq_length//P, hidden_dim//num_heads, device=my_device, dtype=type)
+    v_ = torch.empty_like(k_)
+    dist.all_gather(k_, k)
+    dist.all_gather(v_, v)
+    if my_rank == root_rank:
+        print("all-gather k, v")
+        print(f"k_ [P, h, N/P, d/h]: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
+        print(f"v_ [P, h, N/P, d/h]: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
+        torch.cuda.synchronize()
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    return None
+
 
 def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch.Tensor:
     # initialize input and model
@@ -301,6 +349,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
             print("c and c_ are not equal.")
 
 ulysses(seq_length, hidden_dim, num_heads, P)
+ulysses_allgather(seq_length, hidden_dim, num_heads, P)
 # ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
 
 
