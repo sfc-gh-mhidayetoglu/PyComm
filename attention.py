@@ -185,8 +185,8 @@ def ulysses_allgather(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # all-gather k, v
     k_ = torch.empty(P, num_heads, seq_length//P, hidden_dim//num_heads, device=my_device, dtype=type)
     v_ = torch.empty_like(k_)
-    dist.all_gather(k_, k)
-    dist.all_gather(v_, v)
+    dist.all_gather_into_tensor(k_, k)
+    dist.all_gather_into_tensor(v_, v)
     if my_rank == root_rank:
         print("all-gather k, v")
         print(f"k_ [P, h, N/P, d/h]: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
