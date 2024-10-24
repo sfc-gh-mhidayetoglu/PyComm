@@ -229,7 +229,7 @@ def ulysses_allgather(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     # transpose c
-    c = torch.transpose(c, 0, 1).contiguous()
+    c = torch.transpose(c, 0, 1)#.contiguous()
     c = torch.reshape(c, (seq_length//P, hidden_dim))
     if my_rank == root_rank:
         print("transpose(0, 1) & reshape c")
