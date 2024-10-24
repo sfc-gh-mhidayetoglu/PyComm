@@ -121,7 +121,6 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"is_contiguous: {c.is_contiguous()}")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-    return None
     c_ = torch.empty(P, seq_length//P, num_heads//P, hidden_dim//num_heads, device=my_device, dtype=type)
     dist.all_to_all_single(c_, c)
     if my_rank == root_rank:
