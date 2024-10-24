@@ -127,7 +127,8 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"c_ [P, N/P, h/P, d/h]: {c_.shape}, elements: {c_.nelement()}, size {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-    c_ = torch.reshape(torch.transpose(c_, 0, 1), (seq_length//P, hidden_dim))
+    c_ = torch.transpose(c_, 0, 1)
+    c_ = torch.reshape(c_, (seq_length//P, hidden_dim))
     proj = torch.reshape(proj, (hidden_dim, hidden_dim))
     if my_rank == root_rank:
         print("transpose(0, 1) c_ & reshape c_ and projection")
