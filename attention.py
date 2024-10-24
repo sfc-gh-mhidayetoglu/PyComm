@@ -42,7 +42,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     proj = torch.ones(num_heads, hidden_dim//num_heads, hidden_dim, device=my_device, dtype=type)
     if my_rank == root_rank:
         print("\nUlysses attention")
-        print(f"input [N/P, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
+        print(f"input [N/P, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
         print(f"Q [h, d, d/h]: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
         print(f"K [h, d, d/h]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
         print(f"V [h, d, d/h]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
@@ -143,7 +143,7 @@ def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print("compute output")
         print(f"output = c x proj")
         print(f"flops: {2 * seq_length * hidden_dim * hidden_dim / 1e12:.2f} TFLOPs")
-        print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e9:.2f} GB")
+        print(f"output [N/P, d]: {output.shape}, elements: {output.nelement()}, size {output.element_size() * output.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     return output
