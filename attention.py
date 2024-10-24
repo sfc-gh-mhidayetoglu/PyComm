@@ -193,6 +193,28 @@ def ulysses_allgather(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         print(f"v_ [P, h, N/P, d/h]: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    #transpose k_ and v_
+    k_ = torch.transpose(k_, 0, 1)
+    v_ = torch.transpose(v_, 0, 1)
+    k_ = torch.reshape(k_, (num_heads, seq_length, hidden_dim//num_heads))
+    v_ = torch.reshape(v_, (num_heads, seq_length, hidden_dim//num_heads))
+    if my_rank == root_rank:
+        print("transpose(0, 1) k_, v_ & reshape")
+        print(f"k_ [h, N, d/h]: {k_.shape}, elements: {k_.nelement()}, size {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
+        print(f"v_ [h, N, d/h]: {v_.shape}, elements: {v_.nelement()}, size {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
+        print(f"is_contiguous: {k_.is_contiguous()}")
+        torch.cuda.synchronize()
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    # compute attention
+    A = torch.matmul(q, torch.transpose(k_, 1, 2))
+    if my_rank == root_rank:
+        print("compute attention")
+        print(f"A = q x k_t")
+        print(f"flops: {2 * seq_length * seq_length * hidden_dim /1e12:.2f} TFLOPs")
+        print(f"A [h, N/P, N]: {A.shape}, elements: {A.nelement()}, size {A.element_size() * A.nelement() / 1e9:.2f} GB")
+        print(f"is_contiguous: {A.is_contiguous()}")
+        torch.cuda.synchronize()
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     return None
 
 
