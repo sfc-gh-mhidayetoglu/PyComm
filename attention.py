@@ -206,7 +206,8 @@ def ulysses_allgather(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     # compute attention
-    A = torch.matmul(q, torch.transpose(k_, 1, 2))
+    # A = torch.matmul(q, torch.transpose(k_, 1, 2))
+    A = torch.matmul(q, k_.transpose(1, 2))
     if my_rank == root_rank:
         print("compute attention")
         print(f"A = q x k_t")
