@@ -14,7 +14,9 @@ def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> 
         total_memory = sum(W[i].element_size() * W[i].nelement() for i in range(num_layers)) / 1e6
         print(f"Total memory footprint of W: {total_memory:.2f} MB")
         torch.cuda.synchronize()
+        print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    # MLP loop
     for i in range(num_layers, 2):
         output = torch.matmul(input, W[i])
         if my_rank == root_rank:
@@ -22,6 +24,7 @@ def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> 
             print(f"flops: {2 * seq_length * hidden_dim * inter_size / 1e12:.2f} TFLOPs")
             print(f"output [N, d'/P]: {output.shape}, elements: {output.nelement()}, size: {output.element_size() * output.nelement() / 1e6:.2f} MB")
             torch.cuda.synchronize()
+            print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
             print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
         # apply activation function
         output = torch.nn.functional.gelu(output)
@@ -31,6 +34,7 @@ def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> 
             print(f"flops: {2 * seq_length * inter_size * hidden_dim / 1e12:.2f} TFLOPs")
             print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
             torch.cuda.synchronize()
+            print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
             print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
         dist.all_reduce(input)
     return input
