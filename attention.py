@@ -10,7 +10,7 @@ def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> 
         print("\nModel parallel")
         print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
         for i in range(num_layers):
-            print(f"W[{i}] shape: {W[i].shape}, elements: {W[i].nelement()}, size: {W[i].element_size() * W[i].nelement() / 1e6:.2f} MB")
+            print(f"W[{i}] shape: {W[i].shape}, elements: {W[i].nelement()}, size: {W[i].element_size() * W[i].nelement() / 1e9:.2f} GB")
         total_memory = sum(W[i].element_size() * W[i].nelement() for i in range(num_layers)) / 1e6
         print(f"Total memory footprint of W: {total_memory:.2f} MB")
         torch.cuda.synchronize()
