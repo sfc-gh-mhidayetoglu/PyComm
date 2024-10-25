@@ -1,37 +1,7 @@
 import torch
 import torch.distributed as dist
 
-# initialize
-dist.init_process_group(backend='nccl')
-my_rank = dist.get_rank()
-world_size = dist.get_world_size()
-torch.cuda.set_device(my_rank % torch.cuda.device_count())
-my_device = torch.cuda.current_device()
-root_rank = 7
-
-# model parameters
-seq_length = 60000  # N
-hidden_dim = 16384  # d
-num_heads = 128     # h
-inter_size = 53248  # d'
-num_layers = 126    # L
-type = torch.bfloat16
-
-# parallelization parameters
-P = world_size
-
-# report parameters
-if my_rank == root_rank:
-    print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
-    print("seq length: " + str(seq_length))
-    print("hidden dim: " + str(hidden_dim))
-    # print("num layers: " + str(num_layers))
-    print("num heads: " + str(num_heads))
-    print("type: " + str(type))
-    print("P: " + str(P))
-    print("head per GPU: " + str(num_heads//P) + " tokens per GPU: " + str(seq_length//P))
-
-def model_parallel(seq_length, hidden_dim, inter_size, P, input) -> torch.Tensor:
+def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> torch.Tensor:
     # initialize model
     # input [N, d]
     # W[L, d-or-d', d'-or-d]
@@ -63,7 +33,7 @@ def model_parallel(seq_length, hidden_dim, inter_size, P, input) -> torch.Tensor
             torch.cuda.synchronize()
             print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
         dist.all_reduce(input)
-
+    return input
 
 
 def ulysses_attention(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
@@ -437,6 +407,38 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         else:
             print("c and c_ are not equal.")
 
+
+# initialize
+dist.init_process_group(backend='nccl')
+my_rank = dist.get_rank()
+world_size = dist.get_world_size()
+torch.cuda.set_device(my_rank % torch.cuda.device_count())
+my_device = torch.cuda.current_device()
+root_rank = 7
+
+# model parameters
+seq_length = 60000  # N
+hidden_dim = 16384  # d
+num_heads = 128     # h
+inter_size = 53248  # d'
+num_layers = 126    # L
+type = torch.bfloat16
+
+# parallelization parameters
+P = world_size
+
+# report parameters
+if my_rank == root_rank:
+    print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()) + "\n")
+    print("seq length: " + str(seq_length))
+    print("hidden dim: " + str(hidden_dim))
+    # print("num layers: " + str(num_layers))
+    print("num heads: " + str(num_heads))
+    print("type: " + str(type))
+    print("P: " + str(P))
+    print("head per GPU: " + str(num_heads//P) + " tokens per GPU: " + str(seq_length//P))
+
+
 torch.cuda.synchronize()
 dist.barrier()
 output = ulysses_attention(seq_length, hidden_dim, num_heads, P)
@@ -444,6 +446,7 @@ torch.cuda.synchronize()
 torch.cuda.empty_cache()
 output_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
 dist.all_gather_into_tensor(output_, output)
+model_parallel(seq_length, hidden_dim, inter_size, num_layers. P, output_)
 
 
 # ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
