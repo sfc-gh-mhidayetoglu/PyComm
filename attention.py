@@ -37,12 +37,32 @@ def model_parallel(seq_length, hidden_dim, inter_size, P, input) -> torch.Tensor
     # W[L, d-or-d', d'-or-d]
     W = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) if i % 2 == 0 else torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for i in range(num_layers)]
     if my_rank == root_rank:
+        print("\nModel parallel")
+        print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
         for i in range(num_layers):
             print(f"W[{i}] shape: {W[i].shape}, elements: {W[i].nelement()}, size: {W[i].element_size() * W[i].nelement() / 1e6:.2f} MB")
         total_memory = sum(W[i].element_size() * W[i].nelement() for i in range(num_layers)) / 1e6
         print(f"Total memory footprint of W: {total_memory:.2f} MB")
         torch.cuda.synchronize()
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    for i in range(num_layers, 2):
+        output = torch.matmul(input, W[i])
+        if my_rank == root_rank:
+            print(f"output = input x W[{i}]")
+            print(f"flops: {2 * seq_length * hidden_dim * inter_size / 1e12:.2f} TFLOPs")
+            print(f"output [N, d'/P]: {output.shape}, elements: {output.nelement()}, size: {output.element_size() * output.nelement() / 1e6:.2f} MB")
+            torch.cuda.synchronize()
+            print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+        # apply activation function
+        output = torch.nn.functional.gelu(output)
+        input = torch.matmul(output, W[i+1])
+        if my_rank == root_rank:
+            print(f"input = output x W[{i+1}]")
+            print(f"flops: {2 * seq_length * inter_size * hidden_dim / 1e12:.2f} TFLOPs")
+            print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
+            torch.cuda.synchronize()
+            print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+        dist.all_reduce(input)
 
 
 
