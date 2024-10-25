@@ -31,11 +31,26 @@ if my_rank == root_rank:
     print("P: " + str(P))
     print("head per GPU: " + str(num_heads//P) + " tokens per GPU: " + str(seq_length//P))
 
-def ulysses(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
+def model_parallel(seq_length, hidden_dim, inter_size, P, input) -> torch.Tensor:
+    # initialize model
+    # input [N, d]
+    # W[L, d-or-d', d'-or-d]
+    W = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) if i % 2 == 0 else torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for i in range(num_layers)]
+    if my_rank == root_rank:
+        for i in range(num_layers):
+            print(f"W[{i}] shape: {W[i].shape}, elements: {W[i].nelement()}, size: {W[i].element_size() * W[i].nelement() / 1e6:.2f} MB")
+        total_memory = sum(W[i].element_size() * W[i].nelement() for i in range(num_layers)) / 1e6
+        print(f"Total memory footprint of W: {total_memory:.2f} MB")
+        torch.cuda.synchronize()
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+
+
+
+def ulysses_attention(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
     # input [N/P, d]
     # Q, K, V [h, d, d/h]
-    # proj [h, d/h, d]
+    # O [h, d/h, d]
     input = torch.randn(seq_length//P, hidden_dim, device=my_device, dtype=type)
     Q = torch.ones(num_heads, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
     K = torch.ones_like(Q)
@@ -402,10 +417,15 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         else:
             print("c and c_ are not equal.")
 
-ulysses(seq_length, hidden_dim, num_heads, P)
+torch.cuda.synchronize()
+dist.barrier()
+output = ulysses_attention(seq_length, hidden_dim, num_heads, P)
 torch.cuda.synchronize()
 torch.cuda.empty_cache()
-ulysses_allgather(seq_length, hidden_dim, num_heads, P)
+output_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
+dist.all_gather_into_tensor(output_, output)
+
+
 # ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
 
 
