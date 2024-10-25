@@ -8,7 +8,7 @@ def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> 
     W = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) if i % 2 == 0 else torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for i in range(num_layers)]
     if my_rank == root_rank:
         print("\nModel parallel")
-        print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
+        print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
         for i in range(num_layers):
             print(f"W[{i}] shape: {W[i].shape}, elements: {W[i].nelement()}, size: {W[i].element_size() * W[i].nelement() / 1e9:.2f} GB")
         total_memory = sum(W[i].element_size() * W[i].nelement() for i in range(num_layers)) / 1e6
@@ -17,7 +17,7 @@ def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> 
         print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
     # MLP loop
-    for i in range(num_layers, 2):
+    for i in range(0, num_layers, 2):
         output = torch.matmul(input, W[i])
         if my_rank == root_rank:
             print(f"output = input x W[{i}]")
