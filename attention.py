@@ -438,15 +438,15 @@ if my_rank == root_rank:
     print("P: " + str(P))
     print("head per GPU: " + str(num_heads//P) + " tokens per GPU: " + str(seq_length//P))
 
-
 torch.cuda.synchronize()
 dist.barrier()
 output = ulysses_attention(seq_length, hidden_dim, num_heads, P)
 torch.cuda.synchronize()
 torch.cuda.empty_cache()
+dist.barrier()
 output_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
 dist.all_gather_into_tensor(output_, output)
-model_parallel(seq_length, hidden_dim, inter_size, num_layers. P, output_)
+model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, output_)
 
 
 # ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
