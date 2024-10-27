@@ -36,9 +36,9 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input) -> torch
             print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
         # apply activation function
         output = torch.nn.functional.gelu(output)
-        input_ = torch.matmul(output, W2[i+1])
+        input_ = torch.matmul(output, W2[i])
         if my_rank == root_rank:
-            print(f"input = output x W2[{i+1}]")
+            print(f"input = output x W2[{i}]")
             print(f"flops: {2 * seq_length * inter_size * hidden_dim / 1e12:.2f} TFLOPs")
             print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
             torch.cuda.synchronize()
