@@ -22,7 +22,7 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input) -> torch
 
 
     input_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
-    dist.all_gather_single(input_, input)
+    dist.all_gather_into_tensor(input_, input)
 
     # MLP loop
     for i in range(num_layers):
