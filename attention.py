@@ -1,26 +1,34 @@
 import torch
 import torch.distributed as dist
 
-def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> torch.Tensor:
+def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input) -> torch.Tensor:
     # initialize model
     # input [N, d]
-    # W[L, d-or-d', d'-or-d]
-    W = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) if i % 2 == 0 else torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for i in range(num_layers)]
+    # W1[L, d, d']
+    # W2[L, d', d]
+    W1 = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) for _ in range(num_layers)]
+    W2 = [torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
     if my_rank == root_rank:
         print("\nModel parallel")
         print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
-        for i in range(num_layers):
-            print(f"W[{i}] shape: {W[i].shape}, elements: {W[i].nelement()}, size: {W[i].element_size() * W[i].nelement() / 1e9:.2f} GB")
-        total_memory = sum(W[i].element_size() * W[i].nelement() for i in range(num_layers)) / 1e6
-        print(f"Total memory footprint of W: {total_memory:.2f} MB")
+        print(f"W1 [L, d, d']: {W1[0].shape}, elements: {W1[0].nelement()}, size: {W1[0].element_size() * W1[0].nelement() / 1e6:.2f} MB")
+        print(f"W2 [L, d', d]: {W2[0].shape}, elements: {W2[0].nelement()}, size: {W2[0].element_size() * W2[0].nelement() / 1e6:.2f} MB")
+        total_memory_W1 = sum(W1[i].element_size() * W1[i].nelement() for i in range(num_layers)) / 1e9
+        total_memory_W2 = sum(W2[i].element_size() * W2[i].nelement() for i in range(num_layers)) / 1e9
+        print(f"Total model footprint per GPU: {total_memory_W1+total_memory_W2:.2f} GB")
         torch.cuda.synchronize()
         print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+
+
+    input_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
+    dist.all_gather_single(input_, input)
+
     # MLP loop
-    for i in range(0, num_layers, 2):
-        output = torch.matmul(input, W[i])
+    for i in range(num_layers):
+        output = torch.matmul(input_, W1[i])
         if my_rank == root_rank:
-            print(f"output = input x W[{i}]")
+            print(f"output = input x W1[{i}]")
             print(f"flops: {2 * seq_length * hidden_dim * inter_size / 1e12:.2f} TFLOPs")
             print(f"output [N, d'/P]: {output.shape}, elements: {output.nelement()}, size: {output.element_size() * output.nelement() / 1e6:.2f} MB")
             torch.cuda.synchronize()
@@ -28,17 +36,44 @@ def model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, input) -> 
             print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
         # apply activation function
         output = torch.nn.functional.gelu(output)
-        input = torch.matmul(output, W[i+1])
+        input_ = torch.matmul(output, W2[i+1])
         if my_rank == root_rank:
-            print(f"input = output x W[{i+1}]")
+            print(f"input = output x W2[{i+1}]")
             print(f"flops: {2 * seq_length * inter_size * hidden_dim / 1e12:.2f} TFLOPs")
             print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
             torch.cuda.synchronize()
             print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
             print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-        dist.all_reduce(input)
-    return input
+        dist.all_reduce(input_)
+    return input_
 
+def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input) -> torch.Tensor:
+    # initialize model
+    # input [N/DP, d]
+    # W1[L, d, d'/TP]
+    # W2[L, d'/TP, d]
+    W1 = [torch.ones(hidden_dim, inter_dim//TP, device=my_device, dtype=type) for _ in range(num_layers)]
+    W2 = [torch.ones(inter_dim//TP, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
+    if my_rank == root_rank:
+        print("\n2D Model parallel")
+        print(f"input [N/DP, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
+        print(f"W1 [L, d, d'/TP]: {W1[0].shape}, elements: {W1[0].nelement()}, size: {W1[0].element_size() * W1[0].nelement() / 1e6:.2f} MB")
+        print(f"W2 [L, d'/TP, d]: {W2[0].shape}, elements: {W2[0].nelement()}, size: {W2[0].element_size() * W2[0].nelement() / 1e6:.2f} MB")
+        total_memory_W1 = sum(W1[i].element_size() * W1[i].nelement() for i in range(num_layers)) / 1e9
+        total_memory_W2 = sum(W2[i].element_size() * W2[i].nelement() for i in range(num_layers)) / 1e9
+        print(f"Total model footprint per GPU: {total_memory_W1+total_memory_W2:.2f} GB")
+        torch.cuda.synchronize()
+        print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+    # Create group communicators
+    ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
+    if my_rank == root_rank:
+        print("TP ranks: " + str(ranks))
+    group_TP = dist.new_group(ranks, use_local_synchronization=True)
+    ranks = [i for i in range(world_size) if i // DP == my_rank // DP]
+    if my_rank == root_rank:
+        print("DP ranks: " + str(ranks))
+    group_DP = dist.new_group(ranks, use_local_synchronization=True)
 
 def ulysses_attention(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
@@ -429,7 +464,11 @@ num_layers = 126    # L
 type = torch.bfloat16
 
 # parallelization parameters
-P = world_size
+TP = 8
+DP = 2
+P = TP * DP
+if P != world_size:
+    raise ValueError("P must equal world_size")
 
 # report parameters
 if my_rank == root_rank:
@@ -439,18 +478,19 @@ if my_rank == root_rank:
     # print("num layers: " + str(num_layers))
     print("num heads: " + str(num_heads))
     print("type: " + str(type))
+    print("TP: " + str(TP))
+    print("DP: " + str(DP))
     print("P: " + str(P))
     print("head per GPU: " + str(num_heads//P) + " tokens per GPU: " + str(seq_length//P))
 
 torch.cuda.synchronize()
 dist.barrier()
-output = ulysses_attention(seq_length, hidden_dim, num_heads, P)
+att_out = ulysses_attention(seq_length, hidden_dim, num_heads, P)
 torch.cuda.synchronize()
-torch.cuda.empty_cache()
 dist.barrier()
-output_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
-dist.all_gather_into_tensor(output_, output)
-model_parallel(seq_length, hidden_dim, inter_size, num_layers, P, output_)
+torch.cuda.empty_cache()
+MLP_out = MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, att_out)
+MLP_2D_out = MLP_2D(seq_length, hidden_dim, inter_size, num_layers, TP, DP, att_out)
 
 
 # ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
