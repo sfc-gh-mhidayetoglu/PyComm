@@ -38,9 +38,9 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input) -> torch
         inter = torch.nn.functional.gelu(inter)
         input_ = torch.matmul(inter, W2[i])
         if my_rank == root_rank:
-            print(f"input = inter x W2[{i}]")
+            print(f"input_ = inter x W2[{i}]")
             print(f"flops: {2 * seq_length * inter_size * hidden_dim / 1e12:.2f} TFLOPs")
-            print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
+            print(f"input_ [N, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e6:.2f} MB")
             torch.cuda.synchronize()
             print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
             print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
@@ -78,7 +78,7 @@ def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input) -> torc
     for i in range(num_layers):
         inter = torch.matmul(input_, W1[i])
         if my_rank == root_rank:
-            print(f"inter = input x W1[{i}]")
+            print(f"inter = input_ x W1[{i}]")
             print(f"flops: {2 * seq_length * hidden_dim * inter_dim / 1e12:.2f} TFLOPs")
             print(f"inter [N/DP, d'/TP]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
             torch.cuda.synchronize()
@@ -87,14 +87,15 @@ def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input) -> torc
         # apply activation function
         inter = torch.nn.functional.gelu(inter)
         input_ = torch.matmul(inter, W2[i])
+        dist.all_reduce(input_, group=group_TP)
         if my_rank == root_rank:
-            print(f"input = inter x W2[{i}]")
+            print(f"input_ = inter x W2[{i}]")
             print(f"flops: {2 * seq_length * inter_dim * hidden_dim / 1e12:.2f} TFLOPs")
-            print(f"input [N/DP, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e6:.2f} MB")
+            print(f"input_ [N/DP, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e6:.2f} MB")
+            print(f"all-reduce input_")
             torch.cuda.synchronize()
             print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
             print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-        dist.all_reduce(input_, group=group_TP)
 
 def ulysses_attention(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
