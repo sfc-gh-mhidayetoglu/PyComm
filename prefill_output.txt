@@ -1,0 +1,77 @@
+10.7.21.246: my_rank 7/16 my_device 7/8
+10.7.21.246: 
+10.7.21.246: seq length: 60000
+10.7.21.246: hidden dim: 16384
+10.7.21.246: num heads: 128
+10.7.21.246: type: torch.bfloat16
+10.7.21.246: TP: 8
+10.7.21.246: DP: 2
+10.7.21.246: P: 16
+10.7.21.246: head per GPU: 8 tokens per GPU: 3750
+10.7.21.246: NCCL version 2.21.5+cuda12.5
+10.7.21.246: 
+10.7.21.246: Ulysses attention
+10.7.21.246: input [N/P, d]: torch.Size([3750, 16384]), elements: 61440000, size: 122.88 MB
+10.7.21.246: Q [h, d, d/h]: torch.Size([128, 16384, 128]), elements: 268435456, size: 536.87 MB
+10.7.21.246: K [h, d, d/h]: torch.Size([128, 16384, 128]), elements: 268435456, size: 536.87 MB
+10.7.21.246: V [h, d, d/h]: torch.Size([128, 16384, 128]), elements: 268435456, size: 536.87 MB
+10.7.21.246: O [h, d/h, d]: torch.Size([128, 128, 16384]), elements: 268435456, size: 536.87 MB
+10.7.21.246: Peak memory allocation: 2.27 GB
+10.7.21.246: compute q, k, v
+10.7.21.246: q = input x Q, k = input x K, v = input x V
+10.7.21.246: flops: 96.64 TFLOPs
+10.7.21.246: q [h, N/P, d/h]: torch.Size([128, 3750, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: k [h, N/P, d/h]: torch.Size([128, 3750, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: v [h, N/P, d/h]: torch.Size([128, 3750, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: Peak memory allocation: 2.68 GB
+10.7.21.246: q_, k_, v_ = all-to-all q, k, v
+10.7.21.246: q_ [P, h/P, N/P, d/h]: torch.Size([16, 8, 3750, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: k_ [P, h/P, N/P, d/h]: torch.Size([16, 8, 3750, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: v_ [P, h/P, N/P, d/h]: torch.Size([16, 8, 3750, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: Peak memory allocation: 3.05 GB
+10.7.21.246: transpose(0, 1) q_, k_, v_ & reshape
+10.7.21.246: q_ [h/P, N, d/h]: torch.Size([8, 60000, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: k_ [h/P, N, d/h]: torch.Size([8, 60000, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: v_ [h/P, N, d/h]: torch.Size([8, 60000, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: is_contiguous: True
+10.7.21.246: Peak memory allocation: 3.17 GB
+10.7.21.246: compute attention
+10.7.21.246: A = q_ x k_t
+10.7.21.246: flops: 117.96 TFLOPs
+10.7.21.246: A [h/P, N, N]: torch.Size([8, 60000, 60000]), elements: 28800000000, size 57.60 GB
+10.7.21.246: is_contiguous: True
+10.7.21.246: Peak memory allocation: 60.65 GB
+10.7.21.246: compute c
+10.7.21.246: c = A x v_
+10.7.21.246: flops: 117.96 TFLOPs
+10.7.21.246: c [h/P, N, d/h]: torch.Size([8, 60000, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: is_contiguous: True
+10.7.21.246: Peak memory allocation: 60.77 GB
+10.7.21.246: transpose(0, 1) c
+10.7.21.246: c [N, h/P, d/h]: torch.Size([60000, 8, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: is_contiguous: True
+10.7.21.246: Peak memory allocation: 60.90 GB
+10.7.21.246: c_ = all-to-all c
+10.7.21.246: c_ [P, N/P, h/P, d/h]: torch.Size([16, 3750, 8, 128]), elements: 61440000, size 122.88 MB
+10.7.21.246: Peak memory allocation: 60.90 GB
+10.7.21.246: transpose(0, 1) c_ & reshape c_ and O
+10.7.21.246: c_ [N/P, d]: torch.Size([3750, 16384]), elements: 61440000, size 122.88 MB
+10.7.21.246: is_contiguous: True
+10.7.21.246: O [d, d]: torch.Size([16384, 16384]), elements: 268435456, size 536.87 MB
+10.7.21.246: Peak memory allocation: 61.02 GB
+10.7.21.246: compute output
+10.7.21.246: output = c x O
+10.7.21.246: flops: 32.21 TFLOPs
+10.7.21.246: output [N/P, d]: torch.Size([3750, 16384]), elements: 61440000, size 122.88 MB
+10.7.21.246: Peak memory allocation: 61.02 GB
+10.7.21.246: TP ranks: [0, 1, 2, 3, 4, 5, 6, 7]
+10.7.58.247: NCCL version 2.21.5+cuda12.5
+10.7.21.246: 
+10.7.21.246: 2D Model parallel
+10.7.21.246: input_ [N/DP/TP, d]: torch.Size([30000, 16384]), elements: 491520000, size: 0.98 GB
+10.7.21.246: W1 [L, d, d'/TP]: torch.Size([126, 16384, 6656]), elements: 13740539904, size: 27.48 GB
+10.7.21.246: W2 [L, d'/TP, d]: torch.Size([126, 6656, 16384]), elements: 13740539904, size: 27.48 GB
+10.7.21.246: inter = input x W1
+10.7.21.246: inter [N/DP, d'/TP]: torch.Size([30000, 6656]), elements: 199680000, size: 399.36 MB
+10.7.21.246: Current memory allocation: 56.50 GB
+10.7.21.246: Peak memory allocation: 61.02 GB
