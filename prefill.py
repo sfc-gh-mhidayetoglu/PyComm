@@ -42,7 +42,7 @@ def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_) -> tor
 
     if my_rank == root_rank:
         print("\n2D Model parallel")
-        print(f"input_ [N/DP/TP, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
+        print(f"input_ [N/DP/TP, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
         print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e6:.2f} MB")
         print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e6:.2f} MB")
         print(f"inter = input x W1")
