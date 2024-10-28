@@ -72,6 +72,10 @@
 10.7.21.246: W1 [L, d, d'/TP]: torch.Size([126, 16384, 6656]), elements: 13740539904, size: 27.48 GB
 10.7.21.246: W2 [L, d'/TP, d]: torch.Size([126, 6656, 16384]), elements: 13740539904, size: 27.48 GB
 10.7.21.246: inter = input x W1
+10.7.21.246: flops: 6595.46 TFLOPs
 10.7.21.246: inter [N/DP, d'/TP]: torch.Size([30000, 6656]), elements: 199680000, size: 399.36 MB
+10.7.21.246: activation f(inter)
+10.7.21.246: output = inter x W2
+10.7.21.246: flops: 6595.46 TFLOPs
 10.7.21.246: Current memory allocation: 56.50 GB
 10.7.21.246: Peak memory allocation: 61.02 GB
