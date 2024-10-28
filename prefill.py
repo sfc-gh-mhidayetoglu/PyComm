@@ -6,8 +6,10 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
     # input [N, d]
     # W1[L, d, d'/P]
     # W2[L, d'/P, d]
-    W1 = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) for _ in range(num_layers)]
-    W2 = [torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
+    # W1 = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) for _ in range(num_layers)]
+    # W2 = [torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
+    W1 = torch.ones(num_layers, hidden_dim, inter_size//P, device=my_device, dtype=type)
+    W2 = torch.ones(num_layers, inter_size//P, hidden_dim, device=my_device, dtype=type)
     if my_rank == root_rank:
         print("\nModel parallel")
         print(f"input_ [N, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
@@ -17,27 +19,22 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
         print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
+    inter = torch.empty(seq_length, inter_size//P, device=my_device, dtype=type)
+    if my_rank == root_rank:
+        print(f"inter = input x W1")
+        print(f"flops: {2 * num_layers * seq_length * hidden_dim * inter_size / 1e12:.2f} TFLOPs")
+        print(f"inter [N, d'/P]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
+        torch.cuda.synchronize()
+        print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+        
     # MLP loop
     for i in range(num_layers):
         inter = torch.matmul(input_, W1[i])
-        if my_rank == root_rank:
-            print(f"inter = input x W1[{i}]")
-            print(f"flops: {2 * seq_length * hidden_dim * inter_size / 1e12:.2f} TFLOPs")
-            print(f"inter [N, d'/P]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
-            torch.cuda.synchronize()
-            print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-            print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-        # apply activation function
         inter = torch.nn.functional.gelu(inter)
         input_ = torch.matmul(inter, W2[i])
-        if my_rank == root_rank:
-            print(f"input_ = inter x W2[{i}]")
-            print(f"flops: {2 * seq_length * inter_size * hidden_dim / 1e12:.2f} TFLOPs")
-            print(f"input_ [N, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e6:.2f} MB")
-            torch.cuda.synchronize()
-            print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-            print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
         dist.all_reduce(input_)
+
     return input_
 
 def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input) -> torch.Tensor:
