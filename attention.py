@@ -1,28 +1,21 @@
 import torch
 import torch.distributed as dist
 
-def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input) -> torch.Tensor:
+def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torch.Tensor:
     # initialize model
     # input [N, d]
-    # W1[L, d, d']
-    # W2[L, d', d]
+    # W1[L, d, d'/P]
+    # W2[L, d'/P, d]
     W1 = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) for _ in range(num_layers)]
     W2 = [torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
     if my_rank == root_rank:
         print("\nModel parallel")
-        print(f"input [N, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
-        print(f"W1 [L, d, d']: {W1[0].shape}, elements: {W1[0].nelement()}, size: {W1[0].element_size() * W1[0].nelement() / 1e6:.2f} MB")
-        print(f"W2 [L, d', d]: {W2[0].shape}, elements: {W2[0].nelement()}, size: {W2[0].element_size() * W2[0].nelement() / 1e6:.2f} MB")
-        total_memory_W1 = sum(W1[i].element_size() * W1[i].nelement() for i in range(num_layers)) / 1e9
-        total_memory_W2 = sum(W2[i].element_size() * W2[i].nelement() for i in range(num_layers)) / 1e9
-        print(f"Total model footprint per GPU: {total_memory_W1+total_memory_W2:.2f} GB")
+        print(f"input_ [N, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
+        print(f"W1 [L, d, d']: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e6:.2f} MB")
+        print(f"W2 [L, d', d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-
-
-    input_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
-    dist.all_gather_into_tensor(input_, input)
 
     # MLP loop
     for i in range(num_layers):
@@ -49,53 +42,35 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input) -> torch
 
 def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input) -> torch.Tensor:
     # initialize model
-    # input [N/DP/TP, d]
     # W1[L, d, d'/TP]
     # W2[L, d'/TP, d]
     W1 = [torch.ones(hidden_dim, inter_dim//TP, device=my_device, dtype=type) for _ in range(num_layers)]
     W2 = [torch.ones(inter_dim//TP, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
+
     if my_rank == root_rank:
         print("\n2D Model parallel")
-        print(f"input [N/DP/TP, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
-        print(f"W1 [L, d, d'/TP]: {W1[0].shape}, elements: {W1[0].nelement()}, size: {W1[0].element_size() * W1[0].nelement() / 1e6:.2f} MB")
-        print(f"W2 [L, d'/TP, d]: {W2[0].shape}, elements: {W2[0].nelement()}, size: {W2[0].element_size() * W2[0].nelement() / 1e6:.2f} MB")
-        total_memory_W1 = sum(W1[i].element_size() * W1[i].nelement() for i in range(num_layers)) / 1e9
-        total_memory_W2 = sum(W2[i].element_size() * W2[i].nelement() for i in range(num_layers)) / 1e9
-        print(f"Total model footprint per GPU: {total_memory_W1+total_memory_W2:.2f} GB")
+        print(f"input_ [N/DP/TP, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
+        print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e6:.2f} MB")
+        print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-    # Create TP group communicator
-    ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
-    if my_rank == root_rank:
-        print("TP ranks: " + str(ranks))
-    group_TP = dist.new_group(ranks, use_local_synchronization=True)
 
-    input_ = torch.empty(seq_length//DP, hidden_dim, device=my_device, dtype=type)
-    dist.all_gather_into_tensor(input_, input, group=group_TP)
+    inter = torch.empty(seq_length//DP, inter_dim//TP, device=my_device, dtype=type)
+    if my_rank == root_rank:
+        print(f"inter [N/DP, d'/TP]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
+        torch.cuda.synchronize()
+        print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
     # MLP loop
     for i in range(num_layers):
         inter = torch.matmul(input_, W1[i])
-        if my_rank == root_rank:
-            print(f"inter = input_ x W1[{i}]")
-            print(f"flops: {2 * seq_length * hidden_dim * inter_dim / 1e12:.2f} TFLOPs")
-            print(f"inter [N/DP, d'/TP]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
-            torch.cuda.synchronize()
-            print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-            print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-        # apply activation function
         inter = torch.nn.functional.gelu(inter)
         input_ = torch.matmul(inter, W2[i])
         dist.all_reduce(input_, group=group_TP)
-        if my_rank == root_rank:
-            print(f"input_ = inter x W2[{i}]")
-            print(f"flops: {2 * seq_length * inter_dim * hidden_dim / 1e12:.2f} TFLOPs")
-            print(f"input_ [N/DP, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e6:.2f} MB")
-            print(f"all-reduce input_")
-            torch.cuda.synchronize()
-            print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-            print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+
+    return input_
 
 def ulysses_attention(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
@@ -508,15 +483,18 @@ if my_rank == root_rank:
 torch.cuda.synchronize()
 dist.barrier()
 att_out = ulysses_attention(seq_length, hidden_dim, num_heads, P)
-torch.cuda.synchronize()
-dist.barrier()
 torch.cuda.empty_cache()
-MLP_out = MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, att_out)
+input_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
+dist.all_gather_into_tensor(input_, att_out)
+MLP_out = MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_)
+del input_
+torch.cuda.empty_cache()
+# initialize group communicator
+ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
+if my_rank == root_rank:
+    print("TP ranks: " + str(ranks))
+group_TP = dist.new_group(ranks, use_local_synchronization=True)
+# all-gather input
+input_ = torch.empty(seq_length//DP, hidden_dim, device=my_device, dtype=type)
+dist.all_gather_into_tensor(input_, att_out, group=group_TP)
 MLP_2D_out = MLP_2D(seq_length, hidden_dim, inter_size, num_layers, TP, DP, att_out)
-
-
-# ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP)
-
-
-
-
