@@ -30,7 +30,7 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
 
     return input_
 
-def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_) -> torch.Tensor:
+def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_, group_TP) -> torch.Tensor:
     # initialize model
     # W1[L, d, d'/TP]
     # W2[L, d'/TP, d]
@@ -485,4 +485,4 @@ group_TP = dist.new_group(ranks, use_local_synchronization=True)
 # all-gather input
 input_ = torch.empty(seq_length//DP, hidden_dim, device=my_device, dtype=type)
 dist.all_gather_into_tensor(input_, att_out, group=group_TP)
-MLP_2D_out = MLP_2D(seq_length, hidden_dim, inter_size, num_layers, TP, DP, att_out)
+MLP_2D_out = MLP_2D(seq_length, hidden_dim, inter_size, num_layers, TP, DP, input_, group_TP)
