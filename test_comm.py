@@ -2,13 +2,29 @@ import torch
 import torch.distributed as dist
 import time
 import numpy as np
-import deepspeed
-from deepspeed.tops import create_comm, get_default_comm, Layout
-from deepspeed.accelerator import get_accelerator
-from deepspeed.comm import init_distributed
 
-# initialize
+custom = False
+
+if custom:
+    from deepspeed.tops import create_comm, Layout
+    from deepspeed.comm import init_distributed
+
+
 dist.init_process_group(backend='nccl')
+# initialize
+if custom:
+    init_distributed(dist_backend='nccl')
+    global_rank = torch.distributed.get_rank()
+    group_stride = 1
+    group_size = torch.distributed.get_world_size() // group_stride
+    gid = global_rank // group_size
+    comm = create_comm(Layout(group_size, group_stride, world_size=torch.distributed.get_world_size()))
+    val = torch.arange(group_size, dtype=torch.bfloat16, device=torch.cuda.current_device())
+    # test to see all is working
+    val,_ = comm.all_to_all(val)
+    print(f'[{global_rank}]: alltoall -> {val}')
+
+
 my_rank = dist.get_rank()
 world_size = dist.get_world_size()
 torch.cuda.set_device(my_rank % torch.cuda.device_count())
@@ -17,7 +33,7 @@ root_rank = 7
 
 def find_max(time):
     time_max = torch.tensor([time], device=my_device)
-    torch.distributed.all_reduce(time_max, op=torch.distributed.ReduceOp.MAX)
+    dist.all_reduce(time_max, op=dist.ReduceOp.MAX)
     return time_max.item()
 
 # import number of elements
@@ -33,7 +49,7 @@ if my_rank == root_rank:
     print(data)
     print(f"Buffer size in MB: {bytes / 1e6}")
 
-log_new = open('log_new.txt', 'w')
+log_new = open('log.txt', 'w')
 event_start = torch.cuda.Event(enable_timing=True)
 event_end = torch.cuda.Event(enable_timing=True)
 for i in range(0, 3000):
@@ -43,7 +59,10 @@ for i in range(0, 3000):
     dist.barrier()
     time_start = time.perf_counter()
     event_start.record()
-    dist.all_reduce(buff_)
+    if custom:
+        buff_, _ = comm.all_reduce(buff_)
+    else
+        dist.all_reduce(buff_)
     event_end.record()
     torch.cuda.synchronize()
     time_end = time.perf_counter()
