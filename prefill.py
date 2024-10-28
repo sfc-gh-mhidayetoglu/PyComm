@@ -13,8 +13,8 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
     if my_rank == root_rank:
         print("\nModel parallel")
         print(f"input_ [N, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
-        print(f"W1 [L, d, d'/P]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e6:.2f} MB")
-        print(f"W2 [L, d'/P, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e6:.2f} MB")
+        print(f"W1 [L, d, d'/P]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
+        print(f"W2 [L, d'/P, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
         print(f"inter = input x W1")
         print(f"inter [N, d'/P]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
@@ -42,8 +42,8 @@ def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_, group_
     if my_rank == root_rank:
         print("\n2D Model parallel")
         print(f"input_ [N/DP/TP, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
-        print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e6:.2f} MB")
-        print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e6:.2f} MB")
+        print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
+        print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
         print(f"inter = input x W1")
         print(f"inter [N/DP, d'/TP]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
