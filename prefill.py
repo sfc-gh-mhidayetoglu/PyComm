@@ -6,11 +6,10 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
     # input [N, d]
     # W1[L, d, d'/P]
     # W2[L, d'/P, d]
-    # W1 = [torch.ones(hidden_dim, inter_size//P, device=my_device, dtype=type) for _ in range(num_layers)]
-    # W2 = [torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
     W1 = torch.ones(num_layers, hidden_dim, inter_size//P, device=my_device, dtype=type)
     W2 = torch.ones(num_layers, inter_size//P, hidden_dim, device=my_device, dtype=type)
     inter = torch.empty(seq_length, inter_size//P, device=my_device, dtype=type)
+
     if my_rank == root_rank:
         print("\nModel parallel")
         print(f"input_ [N, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
@@ -36,8 +35,8 @@ def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_) -> tor
     # W1[L, d, d'/TP]
     # W2[L, d'/TP, d]
     # inter [N/DP, d'/TP]
-    W1 = [torch.ones(hidden_dim, inter_dim//TP, device=my_device, dtype=type) for _ in range(num_layers)]
-    W2 = [torch.ones(inter_dim//TP, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
+    W1 = torch.ones(num_layers, hidden_dim, inter_dim//TP, device=my_device, dtype=type)
+    W2 = torch.ones(num_layers, inter_dim//TP, hidden_dim, device=my_device, dtype=type)
     inter = torch.empty(seq_length//DP, inter_dim//TP, device=my_device, dtype=type)
 
     if my_rank == root_rank:
