@@ -453,8 +453,8 @@ num_layers = 126    # L
 type = torch.bfloat16
 
 # parallelization parameters
-TP = 8
-DP = 2
+TP = 16
+DP = 1
 P = TP * DP
 if P != world_size:
     raise ValueError("P must equal world_size")
