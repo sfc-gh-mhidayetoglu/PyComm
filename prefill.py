@@ -473,12 +473,13 @@ dist.barrier()
 att_out = ulysses_attention(seq_length, hidden_dim, num_heads, P)
 torch.cuda.synchronize()
 torch.cuda.empty_cache()
-input_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
+'''input_ = torch.empty(seq_length, hidden_dim, device=my_device, dtype=type)
 dist.all_gather_into_tensor(input_, att_out)
 MLP_out = MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_)
 del input_
 torch.cuda.synchronize()
 torch.cuda.empty_cache()
+'''
 # initialize group communicator
 ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
 if my_rank == root_rank:
