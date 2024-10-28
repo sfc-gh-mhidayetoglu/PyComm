@@ -10,24 +10,18 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
     # W2 = [torch.ones(inter_size//P, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
     W1 = torch.ones(num_layers, hidden_dim, inter_size//P, device=my_device, dtype=type)
     W2 = torch.ones(num_layers, inter_size//P, hidden_dim, device=my_device, dtype=type)
+    inter = torch.empty(seq_length, inter_size//P, device=my_device, dtype=type)
     if my_rank == root_rank:
         print("\nModel parallel")
         print(f"input_ [N, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
         print(f"W1 [L, d, d']: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e6:.2f} MB")
         print(f"W2 [L, d', d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e6:.2f} MB")
-        torch.cuda.synchronize()
-        print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-
-    inter = torch.empty(seq_length, inter_size//P, device=my_device, dtype=type)
-    if my_rank == root_rank:
         print(f"inter = input x W1")
-        print(f"flops: {2 * num_layers * seq_length * hidden_dim * inter_size / 1e12:.2f} TFLOPs")
         print(f"inter [N, d'/P]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-        
+
     # MLP loop
     for i in range(num_layers):
         inter = torch.matmul(input_, W1[i])
@@ -37,24 +31,21 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
 
     return input_
 
-def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input) -> torch.Tensor:
+def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_) -> torch.Tensor:
     # initialize model
     # W1[L, d, d'/TP]
     # W2[L, d'/TP, d]
+    # inter [N/DP, d'/TP]
     W1 = [torch.ones(hidden_dim, inter_dim//TP, device=my_device, dtype=type) for _ in range(num_layers)]
     W2 = [torch.ones(inter_dim//TP, hidden_dim, device=my_device, dtype=type) for _ in range(num_layers)]
+    inter = torch.empty(seq_length//DP, inter_dim//TP, device=my_device, dtype=type)
 
     if my_rank == root_rank:
         print("\n2D Model parallel")
         print(f"input_ [N/DP/TP, d]: {input.shape}, elements: {input.nelement()}, size: {input.element_size() * input.nelement() / 1e9:.2f} GB")
         print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e6:.2f} MB")
         print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e6:.2f} MB")
-        torch.cuda.synchronize()
-        print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-        print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-
-    inter = torch.empty(seq_length//DP, inter_dim//TP, device=my_device, dtype=type)
-    if my_rank == root_rank:
+        print(f"inter = input x W1")
         print(f"inter [N/DP, d'/TP]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
         torch.cuda.synchronize()
         print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
