@@ -1,6 +1,7 @@
 import torch
 import torch.distributed as dist
 
+
 def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torch.Tensor:
     # initialize model
     # input [N, d]
@@ -30,19 +31,6 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
 
     return input_
 
-
-def MLP_2D(input_, W1, W2, inter, TP, DP, group_TP) -> torch.Tensor:
-    # initialize model
-    # input_ [N/DP, d]
-    # W1[L, d, d'/TP]
-    # W2[L, d'/TP, d]
-    # inter [N/DP, d'/TP]
-    # MLP loop
-    inter = torch.matmul(input_, W1[i])
-    inter = torch.nn.functional.gelu(inter)
-    input_ = torch.matmul(inter, W2[i])
-    dist.all_reduce(input_, group=group_TP)
-    return input_
 
 def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_, group_TP) -> torch.Tensor:
     # initialize model
@@ -451,6 +439,7 @@ def ulysses_2D_rowwise(seq_length, hidden_dim, num_heads, type, HP, SP) -> torch
         else:
             print("c and c_ are not equal.")
 
+
 # main
 
 # initialize
@@ -499,10 +488,34 @@ group_TP = dist.new_group(ranks, use_local_synchronization=True)
 torch.cuda.synchronize()
 dist.barrier()
 
+embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type)
+Q = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
+K = torch.ones_like(Q)
+V = torch.ones_like(Q)
+O = torch.ones_like(num_layers, hidden_dim//TP, hidden_dim)
+attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_device, dtype=type)
+
+if my_rank == root_rank:
+    print("\nAttention")
+    print(f"Q [d, d/TP]: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
+    print(f"K [d, d/TP]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
+    print(f"V [d, d/TP]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
+    print(f"O [d/TP, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e6:.2f} MB")
+    print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e9:.2f} GB")
+    torch.cuda.synchronize()
+    print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+
+exit()
+
+def attention_2D(input_, Q, K, V, O, group_TP) -> torch.Tensor:
+
+
+    return input_
+
 W1 = torch.ones(num_layers, hidden_dim, inter_size//TP, device=my_device, dtype=type)
 W2 = torch.ones(num_layers, inter_size//TP, hidden_dim, device=my_device, dtype=type)
 activation = torch.empty(seq_length//DP, inter_size//TP, device=my_device, dtype=type)
-embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type)
 
 if my_rank == root_rank:
     print("\nMulti-layer Perceptron")
@@ -519,9 +532,28 @@ if my_rank == root_rank:
     print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
+def MLP_2D(input_, W1, W2, activation, group_TP) -> torch.Tensor:
+    # initialize model
+    # input_ [N/DP, d]
+    # W1[L, d, d'/TP]
+    # W2[L, d'/TP, d]
+    # inter [N/DP, d'/TP]
+    # MLP loop
+    activation = torch.matmul(input_, W1)
+    activation = torch.nn.functional.gelu(activation)
+    input_ = torch.matmul(activation, W2)
+    dist.all_reduce(input_, group=group_TP)
+    return input_
+
+
 for i in range(num_layers):
-    embedding = attention_2D(seq_length, hidden_dim, num_heads, TP, DP, embedding, group_TP)
-    embedding = MLP_2D(out, W1, W2, embedding, TP, DP, out, group_TP)
+    # embedding = attention_2D(seq_length, hidden_dim, num_heads, TP, DP, embedding, group_TP)
+    embedding = attention_2D(embedding, Q[i], K[i], V[i], O[i], group_TP)
+    torch.cuda.synchronize()
+    torch.cuda.empty_cache()
+    embedding = MLP_2D(embedding, W1[i], W2[i], activation, group_TP)
+
+exit()
 
 # att_out = ulysses_attention(seq_length, hidden_dim, num_heads, P)
 torch.cuda.synchronize()
