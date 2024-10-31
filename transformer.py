@@ -66,7 +66,6 @@ def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_, group_
 
     return input_
 
-def ulysses_2D(seq_length, hidden_dim, TP, DP, input) -> torch.Tensor:
 
 def ulysses_attention(seq_length, hidden_dim, num_heads, P) -> torch.Tensor:
     # initialize input and model
@@ -496,10 +495,11 @@ attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_dev
 
 if my_rank == root_rank:
     print("\nAttention")
-    print(f"Q [d, d/TP]: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e6:.2f} MB")
-    print(f"K [d, d/TP]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e6:.2f} MB")
-    print(f"V [d, d/TP]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e6:.2f} MB")
-    print(f"O [d/TP, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e6:.2f} MB")
+    print(f"embedding [N/DP, d]: {embedding.shape}, elements: {embedding.nelement()}, size: {embedding.element_size() * embedding.nelement() / 1e6:.2f} MB")
+    print(f"Q [L, d, d/TP]: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
+    print(f"K [L, d, d/TP]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e9:.2f} GB")
+    print(f"V [L, d, d/TP]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e9:.2f} GB")
+    print(f"O [L, d/TP, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e9:.2f} GB")
     print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e9:.2f} GB")
     torch.cuda.synchronize()
     print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
