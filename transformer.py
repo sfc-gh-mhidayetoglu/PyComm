@@ -450,7 +450,7 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 60000  # N
+seq_length = 30000  # N
 hidden_dim = 16384  # d
 num_heads = 128     # h
 inter_size = 53248  # d'
@@ -492,6 +492,9 @@ K = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
 V = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
 O = torch.ones(num_layers, hidden_dim//TP, hidden_dim)
 attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_device, dtype=type)
+W1 = torch.ones(num_layers, hidden_dim, inter_size//TP, device=my_device, dtype=type)
+W2 = torch.ones(num_layers, inter_size//TP, hidden_dim, device=my_device, dtype=type)
+activation = torch.empty(seq_length//DP, inter_size//TP, device=my_device, dtype=type)
 
 if my_rank == root_rank:
     print("\nAttention")
@@ -501,6 +504,9 @@ if my_rank == root_rank:
     print(f"V [L, d, d/TP]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e9:.2f} GB")
     print(f"O [L, d/TP, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e9:.2f} GB")
     print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e9:.2f} GB")
+    print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
+    print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
+    print(f"activation [N/DP, d'/TP]: {activation.shape}, elements: {activation.nelement()}, size: {activation.element_size() * activation.nelement() / 1e6:.2f} MB")
     torch.cuda.synchronize()
     print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
@@ -512,9 +518,6 @@ def attention_2D(input_, Q, K, V, O, group_TP) -> torch.Tensor:
 
     return input_
 
-W1 = torch.ones(num_layers, hidden_dim, inter_size//TP, device=my_device, dtype=type)
-W2 = torch.ones(num_layers, inter_size//TP, hidden_dim, device=my_device, dtype=type)
-activation = torch.empty(seq_length//DP, inter_size//TP, device=my_device, dtype=type)
 
 if my_rank == root_rank:
     print("\nMulti-layer Perceptron")
