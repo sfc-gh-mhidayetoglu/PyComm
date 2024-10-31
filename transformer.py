@@ -476,7 +476,6 @@ if my_rank == root_rank:
     print("TP: " + str(TP))
     print("DP: " + str(DP))
     print("P: " + str(P))
-    print("head per GPU: " + str(num_heads//P) + " tokens per GPU: " + str(seq_length//P))
 
 # initialize group communicator
 ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
@@ -490,9 +489,9 @@ dist.barrier()
 
 embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type)
 Q = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
-K = torch.ones_like(Q)
-V = torch.ones_like(Q)
-O = torch.ones_like(num_layers, hidden_dim//TP, hidden_dim)
+K = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
+V = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
+O = torch.ones(num_layers, hidden_dim//TP, hidden_dim)
 attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_device, dtype=type)
 
 if my_rank == root_rank:
