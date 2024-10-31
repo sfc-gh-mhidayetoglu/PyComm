@@ -32,6 +32,7 @@ def MLP_model(seq_length, hidden_dim, inter_size, num_layers, P, input_) -> torc
 
 def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_, group_TP) -> torch.Tensor:
     # initialize model
+    # input_ [N/DP, d]
     # W1[L, d, d'/TP]
     # W2[L, d'/TP, d]
     # inter [N/DP, d'/TP]
@@ -41,7 +42,7 @@ def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_, group_
 
     if my_rank == root_rank:
         print("\n2D Model parallel")
-        print(f"input_ [N/DP/TP, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
+        print(f"input_ [N/DP, d]: {input_.shape}, elements: {input_.nelement()}, size: {input_.element_size() * input_.nelement() / 1e9:.2f} GB")
         print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
         print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
         print(f"inter = input x W1")
@@ -455,8 +456,8 @@ num_layers = 126    # L
 type = torch.bfloat16
 
 # parallelization parameters
-TP = 16
-DP = 1
+TP = 8
+DP = 2
 P = TP * DP
 if P != world_size:
     raise ValueError("P must equal world_size")
