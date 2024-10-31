@@ -53,6 +53,8 @@ def MLP_2D(seq_length, hidden_dim, inter_dim, num_layers, TP, DP, input_, group_
         torch.cuda.synchronize()
         print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
         print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
+        print(f"Group TP: {group_TP}")
+        print(f"input_ size: {input_.element_size() * input_.nelement() / 1e6:.2f} MB")
 
     # MLP loop
     for i in range(num_layers):
