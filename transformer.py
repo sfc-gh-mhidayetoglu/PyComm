@@ -454,13 +454,13 @@ seq_length = 30000  # N
 hidden_dim = 16384  # d
 num_heads = 128     # h
 inter_size = 53248  # d'
-num_layers = 126    # L
+num_layers = 63 # 126    # L
 vocab_size = 128256  # V
 type = torch.bfloat16
 
 # parallelization parameters
-TP = 16
-DP = 1
+TP = 8
+DP = 2
 P = TP * DP
 if P != world_size:
     raise ValueError("P must equal world_size")
