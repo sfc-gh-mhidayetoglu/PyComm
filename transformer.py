@@ -534,24 +534,30 @@ if my_rank == root_rank:
     print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
 def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group_TP, group_DP) -> torch.Tensor:
+    # compute q, k, v
     q = torch.matmul(input, Q)
     k = torch.matmul(input, K)
     v = torch.matmul(input, V)
     # all-to-all within DP
-    q_ = torch.reshape(q, (seq_length, hidden_dim//TP//DP))
-    k_ = torch.reshape(k, (seq_length, hidden_dim//TP//DP))
-    v_ = torch.reshape(v, (seq_length, hidden_dim//TP//DP))
+    dist.all_to_all_single(q_, q, group=group_DP)
+    dist.all_to_all_single(k_, k, group=group_DP)
+    dist.all_to_all_single(v_, v, group=group_DP)
     q_ = torch.reshape(q_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     k_ = torch.reshape(k_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     v_ = torch.reshape(v_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
+    # compute attention
     attention = torch.matmul(q_, k_.transpose(1, 2))
+    # compute scores
+    attention = torch.nn.functional.softmax(attention, dim=-1)
     c_ = torch.matmul(attention, v_)
     # all-to-all within DP
+    dist.all_to_all_single(c_, c, group=group_DP)
     c = torch.reshape(c_, (seq_length//DP, hidden_dim//TP))
-    input = torch.matmul(c, O)
+    # compute output
+    output = torch.matmul(c, O)
     # all-reduce within TP
-    dist.all_reduce(input, group=group_TP)
-    return input
+    dist.all_reduce(output, group=group_TP)
+    return output
 
 def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
     # input [N/DP, d]
@@ -560,9 +566,9 @@ def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
     # activation [N/DP, d'/TP]
     activation = torch.matmul(input, W1)
     activation = torch.nn.functional.gelu(activation)
-    input = torch.matmul(activation, W2)
-    dist.all_reduce(input, group=group_TP)
-    return input
+    output = torch.matmul(activation, W2)
+    dist.all_reduce(output, group=group_TP)
+    return output
 
 
 for i in range(num_layers):
