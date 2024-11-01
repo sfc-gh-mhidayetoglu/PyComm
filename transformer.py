@@ -450,7 +450,7 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 30000  # N
+seq_length = 60000  # N
 hidden_dim = 16384  # d
 num_heads = 128     # h
 inter_size = 53248  # d'
@@ -554,8 +554,6 @@ def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group
 for i in range(num_layers):
     # embedding = attention_2D(seq_length, hidden_dim, num_heads, TP, DP, embedding, group_TP)
     embedding = attention_2D(embedding, Q[i], K[i], V[i], O[i], q, k, v, c, q_, k_, v_, c_, attention, group_TP, group_DP)
-    # torch.cuda.synchronize()
-    # torch.cuda.empty_cache()
     # embedding = MLP_2D(embedding, W1[i], W2[i], activation, group_TP)
 
 exit()
