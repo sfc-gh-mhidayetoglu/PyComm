@@ -477,13 +477,13 @@ if my_rank == root_rank:
     print("P: " + str(P))
 
 # initialize group communicator
-ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
-group_TP = dist.new_group(ranks, use_local_synchronization=True)
-ranks = [i for i in range(world_size) if i // DP == my_rank // DP]
-group_DP = dist.new_group(ranks, use_local_synchronization=True)
+ranks_TP = [i for i in range(world_size) if i // TP == my_rank // TP]
+ranks_DP = [i for i in range(world_size) if i // DP == my_rank // DP]
 if my_rank == root_rank:
     print("TP ranks: " + str(ranks))
     print("DP ranks: " + str(ranks))
+group_TP = dist.new_group(ranks_TP, use_local_synchronization=True)
+group_DP = dist.new_group(ranks_DP, use_local_synchronization=True)
 
 # synchronize
 torch.cuda.synchronize()
