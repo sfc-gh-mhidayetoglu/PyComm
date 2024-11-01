@@ -539,9 +539,9 @@ def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group
     k = torch.matmul(input, K)
     v = torch.matmul(input, V)
     # all-to-all within DP
-    q.transpose_(0, 1)
-    k.transpose_(0, 1)
-    v.transpose_(0, 1)
+    q.transpose_(0, 1).reshape_(hidden_dim//TP, seq_length//DP)
+    k.transpose_(0, 1).reshape_(hidden_dim//TP, seq_length//DP)
+    v.transpose_(0, 1).reshape_(hidden_dim//TP, seq_length//DP)
     dist.all_to_all_single(q_, q, group=group_DP)
     dist.all_to_all_single(k_, k, group=group_DP)
     dist.all_to_all_single(v_, v, group=group_DP)
