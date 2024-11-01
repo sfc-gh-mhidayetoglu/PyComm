@@ -540,13 +540,13 @@ def attention_2D(input, Q, K, V, O, c, c_, attention, group_TP, group_DP) -> tor
     q_ = torch.reshape(q_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     k_ = torch.reshape(k_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     v_ = torch.reshape(v_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
-    if my_rank == root_rank:
-        print(f"q_ contiguous: {q_.is_contiguous()}")
     # compute attention
     attention = torch.matmul(q_, k_.transpose(1, 2))
     # compute scores
     attention = torch.nn.functional.softmax(attention, dim=-1)
     c_ = torch.matmul(attention, v_)
+    if my_rank == root_rank:
+        print(f"c_ shape: {c_.shape})")
     # all-to-all within DP
     dist.all_to_all_single(c, c_, group=group_DP)
     # compute output
