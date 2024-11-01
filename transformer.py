@@ -75,7 +75,7 @@ def attention_2D(input, QKV, O, attention, group_TP, group_DP) -> torch.Tensor:
     # all-to-all within DP
     qkv_ = torch.empty(DP, num_heads//TP//DP, 3, seq_length//DP, hidden_dim//num_heads, device=my_device, dtype=type)
     dist.all_to_all_single(qkv_, qkv, group=group_DP)
-    qkv_ = qkv_.transpose(0, 2).reshape((3, num_heads//TP//DP, seq_length, hidden_dim//num_heads))
+    qkv_ = torch.transpose(qkv_, 0, 2).reshape((3, num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     # compute attention
     attention = torch.matmul(qkv_[0], qkv_[1].transpose(-2, -1))
     # compute scores
@@ -85,7 +85,7 @@ def attention_2D(input, QKV, O, attention, group_TP, group_DP) -> torch.Tensor:
     c_ = torch.transpose(c_, 0, 1).contiguous()
     c = torch.empty(DP, seq_length//DP, num_heads//TP//DP, hidden_dim//num_heads, device=my_device, dtype=type)
     dist.all_to_all_single(c, c_, group=group_DP)
-    c = torch.reshape(c.transpose(0, 1), (seq_length//DP, hidden_dim//TP))
+    c = c.transpose(0, 1).reshape((seq_length//DP, hidden_dim//TP))
     # compute output
     output = torch.matmul(c, O)
     # all-reduce within TP
