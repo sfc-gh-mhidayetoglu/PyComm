@@ -492,16 +492,15 @@ group_DP = dist.new_group(ranks_DP, use_local_synchronization=True)
 torch.cuda.synchronize()
 dist.barrier()
 
-embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type)
 QKV = torch.ones(num_layers, num_heads//TP, 3, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
 O = torch.ones(num_layers, hidden_dim//TP, hidden_dim, device=my_device, dtype=type)
-attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_device, dtype=type)
 W1 = torch.ones(num_layers, hidden_dim, inter_size//TP, device=my_device, dtype=type)
 W2 = torch.ones(num_layers, inter_size//TP, hidden_dim, device=my_device, dtype=type)
+embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type)
+attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_device, dtype=type)
 activation = torch.empty(seq_length//DP, inter_size//TP, device=my_device, dtype=type)
 
 if my_rank == root_rank:
-    print("\nAttention")
     print(f"QKV [L, h/TP, 3, d, d/h]: {QKV.shape}, elements: {QKV.nelement()}, size: {QKV.element_size() * QKV.nelement() / 1e9:.2f} GB")
     print(f"O [L, d/TP, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e9:.2f} GB")
     print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
@@ -551,7 +550,7 @@ def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
 torch.cuda.synchronize()
 dist.barrier()
 for i in range(num_layers):
-    embedding_ = attention_2D(embedding, Q[i], K[i], V[i], O[i], attention, group_TP, group_DP)
+    embedding_ = attention_2D(embedding, QKV[i], O[i], attention, group_TP, group_DP)
     embedding = MLP_2D(embedding_, W1[i], W2[i], activation, group_TP)
 torch.cuda.synchronize()
 dist.barrier()
