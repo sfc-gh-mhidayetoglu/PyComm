@@ -538,6 +538,9 @@ def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group
     q = torch.matmul(input, Q)
     k = torch.matmul(input, K)
     v = torch.matmul(input, V)
+    if my_rank == root_rank:
+        print(f"q shape: {q.shape}")
+        print(f"q_ shape: {q_.shape}")
     # all-to-all within DP
     dist.all_to_all_single(q_, q, group=group_DP)
     dist.all_to_all_single(k_, k, group=group_DP)
