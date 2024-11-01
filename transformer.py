@@ -450,11 +450,12 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 # model parameters
-seq_length = 16000  # N
+seq_length = 8192  # N
 hidden_dim = 16384  # d
 num_heads = 128     # h
 inter_size = 53248  # d'
 num_layers = 126    # L
+vocab_size = 128256  # V
 type = torch.bfloat16
 
 # parallelization parameters
