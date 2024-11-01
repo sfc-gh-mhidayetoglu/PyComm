@@ -538,6 +538,9 @@ def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group
     q_ = torch.reshape(q, (seq_length, hidden_dim//TP//DP))
     k_ = torch.reshape(k, (seq_length, hidden_dim//TP//DP))
     v_ = torch.reshape(v, (seq_length, hidden_dim//TP//DP))
+    q_ = torch.reshape(q_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
+    k_ = torch.reshape(k_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
+    v_ = torch.reshape(v_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     attention = torch.matmul(q_, k_.transpose(0, 1))
     c_ = torch.matmul(attention, v_)
     # all-to-all within DP
