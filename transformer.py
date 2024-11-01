@@ -497,8 +497,6 @@ Q = torch.ones(num_layers, num_heads//TP, hidden_dim, hidden_dim//num_heads, dev
 K = torch.ones_like(Q)
 V = torch.ones_like(Q)
 O = torch.ones(num_layers, hidden_dim//TP, hidden_dim, device=my_device, dtype=type)
-c = torch.empty(seq_length//DP, hidden_dim//TP, device=my_device, dtype=type)
-c_ = torch.empty(num_heads//DP//DP, seq_length, hidden_dim//num_heads, device=my_device, dtype=type)
 attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_device, dtype=type)
 W1 = torch.ones(num_layers, hidden_dim, inter_size//TP, device=my_device, dtype=type)
 W2 = torch.ones(num_layers, inter_size//TP, hidden_dim, device=my_device, dtype=type)
@@ -506,28 +504,25 @@ activation = torch.empty(seq_length//DP, inter_size//TP, device=my_device, dtype
 
 if my_rank == root_rank:
     print("\nAttention")
-    print(f"embedding [N/DP, d]: {embedding.shape}, elements: {embedding.nelement()}, size: {embedding.element_size() * embedding.nelement() / 1e6:.2f} MB")
     print(f"Q [L, h/TP, d, d/h]: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
     print(f"K [L, h/TP, d, d/h]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e9:.2f} GB")
     print(f"V [L, h/TP, d, d/h]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e9:.2f} GB")
     print(f"O [L, d/TP, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e9:.2f} GB")
-    print(f"c [N/DP, d/TP]: {c.shape}, elements: {c.nelement()}, size: {c.element_size() * c.nelement() / 1e6:.2f} MB")
-    print(f"c_ [h/DP/DP, N, d/h]: {c_.shape}, elements: {c_.nelement()}, size: {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
-    print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e9:.2f} GB")
     print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
     print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
+    print(f"embedding [N/DP, d]: {embedding.shape}, elements: {embedding.nelement()}, size: {embedding.element_size() * embedding.nelement() / 1e6:.2f} MB")
+    print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e9:.2f} GB")
     print(f"activation [N/DP, d'/TP]: {activation.shape}, elements: {activation.nelement()}, size: {activation.element_size() * activation.nelement() / 1e6:.2f} MB")
     torch.cuda.synchronize()
     print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
-def attention_2D(input, Q, K, V, O, c, c_, attention, group_TP, group_DP) -> torch.Tensor:
+def attention_2D(input, Q, K, V, O, attention, group_TP, group_DP) -> torch.Tensor:
     # compute q, k, v
     q = torch.matmul(input, Q)
     k = torch.matmul(input, K)
     v = torch.matmul(input, V)
     # all-to-all within DP
-    # q [h/TP, N/DP, d/h]
     q_ = torch.empty(DP, num_heads//TP//DP, seq_length//DP, hidden_dim//num_heads, device=my_device, dtype=type)
     k_ = torch.empty_like(q_)
     v_ = torch.empty_like(q_)
@@ -548,6 +543,7 @@ def attention_2D(input, Q, K, V, O, c, c_, attention, group_TP, group_DP) -> tor
     if my_rank == root_rank:
         print(f"c_ shape: {c_.shape})")
     # all-to-all within DP
+    c = torch.empty(seq_length//DP, hidden_dim//TP, device=my_device, dtype=type)
     dist.all_to_all_single(c, c_, group=group_DP)
     # compute output
     output = torch.matmul(c, O)
@@ -567,14 +563,16 @@ def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
     return output
 
 
+torch.cuda.synchronize()
+dist.barrier()
 for i in range(num_layers):
-    if my_rank == root_rank:
-        print(f"layer {i} attention", flush=True)
-    embedding_ = attention_2D(embedding, Q[i], K[i], V[i], O[i], c, c_, attention, group_TP, group_DP)
-    if my_rank == root_rank:
-        print(f"layer {i} MLP", flush=True)
+    embedding_ = attention_2D(embedding, Q[i], K[i], V[i], O[i], attention, group_TP, group_DP)
     embedding = MLP_2D(embedding_, W1[i], W2[i], activation, group_TP)
-
+torch.cuda.synchronize()
+dist.barrier()
+if my_rank == root_rank:
+    print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
 exit()
 
