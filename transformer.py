@@ -525,28 +525,31 @@ def attention_2D(input, Q, K, V, O, attention, group_TP, group_DP) -> torch.Tens
     # all-to-all within DP
     q_ = torch.empty(DP, num_heads//TP//DP, seq_length//DP, hidden_dim//num_heads, device=my_device, dtype=type)
     k_ = torch.empty_like(q_)
-    v_ = torch.empty_like(q_)
+    v_ = torch.empty_like(q_)                                                           # [DP, h/TP/DP, N/DP, d/h]
     dist.all_to_all_single(q_, q, group=group_DP)
     dist.all_to_all_single(k_, k, group=group_DP)
     dist.all_to_all_single(v_, v, group=group_DP)
-    q_ = torch.transpose(q_, 0, 1)
+    q_ = torch.transpose(q_, 0, 1)                                                      # [h/TP/DP, DP, N/DP, d/h]
     k_ = torch.transpose(k_, 0, 1)
     v_ = torch.transpose(v_, 0, 1)
-    q_ = torch.reshape(q_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
+    q_ = torch.reshape(q_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))      # [h/TP/DP, N, d/h]
     k_ = torch.reshape(k_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     v_ = torch.reshape(v_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     # compute attention
-    attention = torch.matmul(q_, k_.transpose(1, 2))
+    attention = torch.matmul(q_, k_.transpose(1, 2))                                    # [h/TP/DP, N, N]
     # compute scores
     attention = torch.nn.functional.softmax(attention, dim=-1)
-    c_ = torch.matmul(attention, v_)
-    c_ = torch.transpose(c_, 0, 1).contiguous()
-    if my_rank == root_rank:
-        print(f"c_ shape: {c_.shape})")
-        print(f"c_ contiguous: {c_.is_contiguous()}")
+    c_ = torch.matmul(attention, v_)                                                    # [h/TP/DP, N, d/h]
     # all-to-all within DP
-    c = torch.empty(seq_length//DP, hidden_dim//TP, device=my_device, dtype=type)
+    c_ = torch.transpose(c_, 0, 1).contiguous()                                         # [N, h/TP/DP, d/h]
+    c = torch.empty(DP, seq_length//DP, num_heads//TP//DP, hidden_dim//num_heads, device=my_device, dtype=type)
     dist.all_to_all_single(c, c_, group=group_DP)
+    c = torch.transpose(c, 0, 1)
+    c = torch.reshape(c, (seq_length//DP, hidden_dim//TP))
+    if my_rank == root_rank:
+        print(f"c shape: {c.shape})")
+        print(f"c contiguous: {c.is_contiguous()}")
+
     # compute output
     output = torch.matmul(c, O)
     # all-reduce within TP
