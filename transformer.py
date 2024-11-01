@@ -540,7 +540,7 @@ def attention_2D(input, Q, K, V, O, attention, group_TP, group_DP) -> torch.Tens
     # compute scores
     attention = torch.nn.functional.softmax(attention, dim=-1)
     c_ = torch.matmul(attention, v_)
-    c_ = torch.transpose(c_, 0, 1)
+    c_ = torch.transpose(c_, 0, 1).contiguous()
     if my_rank == root_rank:
         print(f"c_ shape: {c_.shape})")
         print(f"c_ contiguous: {c_.is_contiguous()}")
