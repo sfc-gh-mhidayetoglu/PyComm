@@ -539,7 +539,7 @@ def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group
     k = torch.matmul(input, K)
     v = torch.matmul(input, V)
     q.transpose_(0, 1)
-    q.contiguous()
+    q = q.contiguous()
     if my_rank == root_rank:
         print(f"q shape: {q.shape}")
         print(f"q contiguous: {q.is_contiguous()}")
