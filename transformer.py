@@ -551,41 +551,22 @@ def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group
     dist.all_reduce(input, group=group_TP)
     return input
 
+def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
+    # input [N/DP, d]
+    # W1[L, d, d'/TP]
+    # W2[L, d'/TP, d]
+    # activation [N/DP, d'/TP]
+    activation = torch.matmul(input, W1)
+    activation = torch.nn.functional.gelu(activation)
+    input = torch.matmul(activation, W2)
+    dist.all_reduce(input, group=group_TP)
+    return input
+
+
 for i in range(num_layers):
     # embedding = attention_2D(seq_length, hidden_dim, num_heads, TP, DP, embedding, group_TP)
     embedding = attention_2D(embedding, Q[i], K[i], V[i], O[i], q, k, v, c, q_, k_, v_, c_, attention, group_TP, group_DP)
-    # embedding = MLP_2D(embedding, W1[i], W2[i], activation, group_TP)
-
-exit()
-
-if my_rank == root_rank:
-    print("\nMulti-layer Perceptron")
-    print(f"embedding [N/DP, d]: {embedding.shape}, elements: {embedding.nelement()}, size: {embedding.element_size() * embedding.nelement() / 1e9:.2f} GB")
-    print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
-    print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
-    print(f"activation = out x W1")
-    print(f"inter [N/DP, d'/TP]: {inter.shape}, elements: {inter.nelement()}, size: {inter.element_size() * inter.nelement() / 1e6:.2f} MB")
-    print(f"flops: {num_layers * seq_length * hidden_dim * inter_dim / 1e12:.2f} TFLOPs")
-    print(f"activation f(inter)")
-    print(f"output = inter x W2")
-    print(f"flops: {num_layers * seq_length * hidden_dim * inter_dim / 1e12:.2f} TFLOPs")
-    torch.cuda.synchronize()
-    print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
-    print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
-
-def MLP_2D(input_, W1, W2, activation, group_TP) -> torch.Tensor:
-    # initialize model
-    # input_ [N/DP, d]
-    # W1[L, d, d'/TP]
-    # W2[L, d'/TP, d]
-    # inter [N/DP, d'/TP]
-    # MLP loop
-    activation = torch.matmul(input_, W1)
-    activation = torch.nn.functional.gelu(activation)
-    input_ = torch.matmul(activation, W2)
-    dist.all_reduce(input_, group=group_TP)
-    return input_
-
+    embedding = MLP_2D(embedding, W1[i], W2[i], activation, group_TP)
 
 
 exit()
