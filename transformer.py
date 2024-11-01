@@ -478,9 +478,12 @@ if my_rank == root_rank:
 
 # initialize group communicator
 ranks = [i for i in range(world_size) if i // TP == my_rank // TP]
+group_TP = dist.new_group(ranks, use_local_synchronization=True)
+ranks = [i for i in range(world_size) if i // DP == my_rank // DP]
+group_DP = dist.new_group(ranks, use_local_synchronization=True)
 if my_rank == root_rank:
     print("TP ranks: " + str(ranks))
-group_TP = dist.new_group(ranks, use_local_synchronization=True)
+    print("DP ranks: " + str(ranks))
 
 # synchronize
 torch.cuda.synchronize()
@@ -490,6 +493,14 @@ embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type
 Q = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
 K = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
 V = torch.ones(num_layers, hidden_dim, hidden_dim//TP)
+q = torch.empty(seq_length//DP, hidden_dim//TP, device=my_device, dtype=type)
+k = torch.empty(seq_length//DP, hidden_dim//TP, device=my_device, dtype=type)
+v = torch.empty(seq_length//DP, hidden_dim//TP, device=my_device, dtype=type)
+c = torch.empty(seq_length//DP, hidden_dim//TP, device=my_device, dtype=type)
+q_ = torch.empty(seq_length, hidden_dim//TP//DP, device=my_device, dtype=type)
+k_ = torch.empty(seq_length, hidden_dim//TP//DP, device=my_device, dtype=type)
+v_ = torch.empty(seq_length, hidden_dim//TP//DP, device=my_device, dtype=type)
+c_ = torch.empty(seq_length, hidden_dim//TP//DP, device=my_device, dtype=type)
 O = torch.ones(num_layers, hidden_dim//TP, hidden_dim)
 attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_device, dtype=type)
 W1 = torch.ones(num_layers, hidden_dim, inter_size//TP, device=my_device, dtype=type)
@@ -503,7 +514,15 @@ if my_rank == root_rank:
     print(f"K [L, d, d/TP]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e9:.2f} GB")
     print(f"V [L, d, d/TP]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e9:.2f} GB")
     print(f"O [L, d/TP, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e9:.2f} GB")
-    print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e9:.2f} GB")
+    print(f"q [N/DP, d/TP]: {q.shape}, elements: {q.nelement()}, size: {q.element_size() * q.nelement() / 1e6:.2f} MB")
+    print(f"k [N/DP, d/TP]: {k.shape}, elements: {k.nelement()}, size: {k.element_size() * k.nelement() / 1e6:.2f} MB")
+    print(f"v [N/DP, d/TP]: {v.shape}, elements: {v.nelement()}, size: {v.element_size() * v.nelement() / 1e6:.2f} MB")
+    print(f"c [N/DP, d/TP]: {c.shape}, elements: {c.nelement()}, size: {c.element_size() * c.nelement() / 1e6:.2f} MB")
+    print(f"q_ [N, d/TP/DP]: {q_.shape}, elements: {q_.nelement()}, size: {q_.element_size() * q_.nelement() / 1e6:.2f} MB")
+    print(f"k_ [N, d/TP/DP]: {k_.shape}, elements: {k_.nelement()}, size: {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
+    print(f"v_ [N, d/TP/DP]: {v_.shape}, elements: {v_.nelement()}, size: {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
+    print(f"c_ [N, d/TP/DP]: {c_.shape}, elements: {c_.nelement()}, size: {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
+    print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e6:.2f} MB")
     print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
     print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
     print(f"activation [N/DP, d'/TP]: {activation.shape}, elements: {activation.nelement()}, size: {activation.element_size() * activation.nelement() / 1e6:.2f} MB")
@@ -511,13 +530,31 @@ if my_rank == root_rank:
     print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
+def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group_TP, group_DP) -> torch.Tensor:
+    q = torch.matmul(input, Q)
+    k = torch.matmul(input, K)
+    v = torch.matmul(input, V)
+    # all-to-all within DP
+    q_ = torch.reshape(q, (seq_length, hidden_dim//TP//DP))
+    k_ = torch.reshape(k, (seq_length, hidden_dim//TP//DP))
+    v_ = torch.reshape(v, (seq_length, hidden_dim//TP//DP))
+    attention = torch.matmul(q_, k_.transpose(0, 1))
+    c_ = torch.matmul(attention, v_)
+    # all-to-all within DP
+    c = torch.reshape(c_, (seq_length//DP, hidden_dim//TP))
+    input = torch.matmul(c, O)
+    # all-reduce within TP
+    torch.all_reduce(input, group=group_TP)
+    return input
+
+for i in range(num_layers):
+    # embedding = attention_2D(seq_length, hidden_dim, num_heads, TP, DP, embedding, group_TP)
+    embedding = attention_2D(embedding, Q[i], K[i], V[i], O[i], q, k, v, c, q_, k_, v_, c_, attention, group_TP, group_DP)
+    # torch.cuda.synchronize()
+    # torch.cuda.empty_cache()
+    # embedding = MLP_2D(embedding, W1[i], W2[i], activation, group_TP)
+
 exit()
-
-def attention_2D(input_, Q, K, V, O, group_TP) -> torch.Tensor:
-
-
-    return input_
-
 
 if my_rank == root_rank:
     print("\nMulti-layer Perceptron")
@@ -548,12 +585,6 @@ def MLP_2D(input_, W1, W2, activation, group_TP) -> torch.Tensor:
     return input_
 
 
-for i in range(num_layers):
-    # embedding = attention_2D(seq_length, hidden_dim, num_heads, TP, DP, embedding, group_TP)
-    embedding = attention_2D(embedding, Q[i], K[i], V[i], O[i], group_TP)
-    torch.cuda.synchronize()
-    torch.cuda.empty_cache()
-    embedding = MLP_2D(embedding, W1[i], W2[i], activation, group_TP)
 
 exit()
 
