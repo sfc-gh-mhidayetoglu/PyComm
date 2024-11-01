@@ -523,7 +523,7 @@ if my_rank == root_rank:
     print(f"k_ [N, d/TP/DP]: {k_.shape}, elements: {k_.nelement()}, size: {k_.element_size() * k_.nelement() / 1e6:.2f} MB")
     print(f"v_ [N, d/TP/DP]: {v_.shape}, elements: {v_.nelement()}, size: {v_.element_size() * v_.nelement() / 1e6:.2f} MB")
     print(f"c_ [N, d/TP/DP]: {c_.shape}, elements: {c_.nelement()}, size: {c_.element_size() * c_.nelement() / 1e6:.2f} MB")
-    print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e6:.2f} MB")
+    print(f"attention [h/TP/DP, N, N]: {attention.shape}, elements: {attention.nelement()}, size: {attention.element_size() * attention.nelement() / 1e9:.2f} GB")
     print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
     print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
     print(f"activation [N/DP, d'/TP]: {activation.shape}, elements: {activation.nelement()}, size: {activation.element_size() * activation.nelement() / 1e6:.2f} MB")
