@@ -551,8 +551,8 @@ def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group
     attention = torch.nn.functional.softmax(attention, dim=-1)
     c_ = torch.matmul(attention, v_)
     # all-to-all within DP
-    dist.all_to_all_single(c_, c, group=group_DP)
-    c = torch.reshape(c_, (seq_length//DP, hidden_dim//TP))
+    dist.all_to_all_single(c, c_, group=group_DP)
+    c = torch.reshape(c, (seq_length//DP, hidden_dim//TP))
     # compute output
     output = torch.matmul(c, O)
     # all-reduce within TP
