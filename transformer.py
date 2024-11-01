@@ -566,7 +566,7 @@ def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
 for i in range(num_layers):
     # embedding = attention_2D(seq_length, hidden_dim, num_heads, TP, DP, embedding, group_TP)
     embedding = attention_2D(embedding, Q[i], K[i], V[i], O[i], q, k, v, c, q_, k_, v_, c_, attention, group_TP, group_DP)
-    embedding = MLP_2D(embedding, W1[i], W2[i], activation, group_TP)
+    # embedding = MLP_2D(embedding, W1[i], W2[i], activation, group_TP)
 
 
 exit()
