@@ -15,7 +15,7 @@ hidden_dim = 16384  # d
 num_heads = 128     # h
 inter_size = 53248  # d'
 num_layers = 63 # 126    # L
-vocab_size = 128256  # V
+vocab_size = 128256  # k
 type = torch.bfloat16
 
 # parallelization parameters
