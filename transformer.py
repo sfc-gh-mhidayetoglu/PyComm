@@ -548,7 +548,7 @@ def attention_2D(input, Q, K, V, O, q, k, v, c, q_, k_, v_, c_, attention, group
     c = torch.reshape(c_, (seq_length//DP, hidden_dim//TP))
     input = torch.matmul(c, O)
     # all-reduce within TP
-    torch.all_reduce(input, group=group_TP)
+    dist.all_reduce(input, group=group_TP)
     return input
 
 for i in range(num_layers):
