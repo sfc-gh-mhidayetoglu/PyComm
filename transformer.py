@@ -493,9 +493,7 @@ torch.cuda.synchronize()
 dist.barrier()
 
 embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type)
-Q = torch.ones(num_layers, num_heads//TP, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
-K = torch.ones_like(Q)
-V = torch.ones_like(Q)
+QKV = torch.ones(num_layers, num_heads//TP, 3, hidden_dim, hidden_dim//num_heads, device=my_device, dtype=type)
 O = torch.ones(num_layers, hidden_dim//TP, hidden_dim, device=my_device, dtype=type)
 attention = torch.empty(num_heads//TP//DP, seq_length, seq_length, device=my_device, dtype=type)
 W1 = torch.ones(num_layers, hidden_dim, inter_size//TP, device=my_device, dtype=type)
@@ -504,9 +502,7 @@ activation = torch.empty(seq_length//DP, inter_size//TP, device=my_device, dtype
 
 if my_rank == root_rank:
     print("\nAttention")
-    print(f"Q [L, h/TP, d, d/h]: {Q.shape}, elements: {Q.nelement()}, size: {Q.element_size() * Q.nelement() / 1e9:.2f} GB")
-    print(f"K [L, h/TP, d, d/h]: {K.shape}, elements: {K.nelement()}, size: {K.element_size() * K.nelement() / 1e9:.2f} GB")
-    print(f"V [L, h/TP, d, d/h]: {V.shape}, elements: {V.nelement()}, size: {V.element_size() * V.nelement() / 1e9:.2f} GB")
+    print(f"QKV [L, h/TP, 3, d, d/h]: {QKV.shape}, elements: {QKV.nelement()}, size: {QKV.element_size() * QKV.nelement() / 1e9:.2f} GB")
     print(f"O [L, d/TP, d]: {O.shape}, elements: {O.nelement()}, size: {O.element_size() * O.nelement() / 1e9:.2f} GB")
     print(f"W1 [L, d, d'/TP]: {W1.shape}, elements: {W1.nelement()}, size: {W1.element_size() * W1.nelement() / 1e9:.2f} GB")
     print(f"W2 [L, d'/TP, d]: {W2.shape}, elements: {W2.nelement()}, size: {W2.element_size() * W2.nelement() / 1e9:.2f} GB")
@@ -517,35 +513,23 @@ if my_rank == root_rank:
     print(f"Current memory allocation: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     print(f"Peak memory allocation: {torch.cuda.max_memory_allocated() / 1e9:.2f} GB")
 
-def attention_2D(input, Q, K, V, O, attention, group_TP, group_DP) -> torch.Tensor:
+def attention_2D(input, QKV, O, attention, group_TP, group_DP) -> torch.Tensor:
     # compute q, k, v
-    q = torch.matmul(input, Q)
-    k = torch.matmul(input, K)
-    v = torch.matmul(input, V)
+    qkv = torch.matmul(input, QKV)
     # all-to-all within DP
-    q_ = torch.empty(DP, num_heads//TP//DP, seq_length//DP, hidden_dim//num_heads, device=my_device, dtype=type)
-    k_ = torch.empty_like(q_)
-    v_ = torch.empty_like(q_)
-    dist.all_to_all_single(q_, q, group=group_DP)
-    dist.all_to_all_single(k_, k, group=group_DP)
-    dist.all_to_all_single(v_, v, group=group_DP)
-    q_ = torch.transpose(q_, 0, 1)
-    k_ = torch.transpose(k_, 0, 1)
-    v_ = torch.transpose(v_, 0, 1)
-    q_ = torch.reshape(q_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
-    k_ = torch.reshape(k_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
-    v_ = torch.reshape(v_, (num_heads//TP//DP, seq_length, hidden_dim//num_heads))
+    qkv_ = torch.empty(DP, num_heads//TP//DP, 3, seq_length//DP, hidden_dim//num_heads, device=my_device, dtype=type)
+    dist.all_to_all_single(qkv_, qkv, group=group_DP)
+    qkv_ = torch.reshape(qkv_.transpose(0, 2), (3, num_heads//TP//DP, seq_length, hidden_dim//num_heads))
     # compute attention
-    attention = torch.matmul(q_, k_.transpose(1, 2))
+    attention = torch.matmul(qkv_[0], qkv_[1].transpose(-2, -1))
     # compute scores
-    # attention = torch.nn.functional.softmax(attention, dim=-1)
-    c_ = torch.matmul(attention, v_)
+    attention = torch.nn.functional.softmax(attention, dim=-1)
+    c_ = torch.matmul(attention, qkv_[2])
     # all-to-all within DP
     c_ = torch.transpose(c_, 0, 1).contiguous()
     c = torch.empty(DP, seq_length//DP, num_heads//TP//DP, hidden_dim//num_heads, device=my_device, dtype=type)
     dist.all_to_all_single(c, c_, group=group_DP)
-    c = torch.transpose(c, 0, 1)
-    c = torch.reshape(c, (seq_length//DP, hidden_dim//TP))
+    c = torch.reshape(c.transpose(0, 1), (seq_length//DP, hidden_dim//TP))
     # compute output
     output = torch.matmul(c, O)
     # all-reduce within TP
