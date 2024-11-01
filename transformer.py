@@ -558,7 +558,7 @@ def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
     # W2[L, d'/TP, d]
     # activation [N/DP, d'/TP]
     activation = torch.matmul(input, W1)
-    # activation = torch.nn.functional.gelu(activation)
+    activation = torch.nn.functional.gelu(activation)
     output = torch.matmul(activation, W2)
     dist.all_reduce(output, group=group_TP)
     return output
