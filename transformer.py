@@ -566,9 +566,11 @@ def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
 
 
 for i in range(num_layers):
-    print(f"layer {i} attention")
+    if my_rank == root_rank:
+        print(f"layer {i} attention", flush=True)
     embedding_ = attention_2D(embedding, Q[i], K[i], V[i], O[i], q, k, v, c, q_, k_, v_, c_, attention, group_TP, group_DP)
-    print(f"layer {i} MLP")
+    if my_rank == root_rank:
+        print(f"layer {i} MLP", flush=True)
     embedding = MLP_2D(embedding_, W1[i], W2[i], activation, group_TP)
 
 
