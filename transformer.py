@@ -538,7 +538,7 @@ def attention_2D(input, Q, K, V, O, attention, group_TP, group_DP) -> torch.Tens
     # compute attention
     attention = torch.matmul(q_, k_.transpose(1, 2))
     # compute scores
-    attention = torch.nn.functional.softmax(attention, dim=-1)
+    # attention = torch.nn.functional.softmax(attention, dim=-1)
     c_ = torch.matmul(attention, v_)
     # all-to-all within DP
     c_ = torch.transpose(c_, 0, 1).contiguous()
@@ -558,7 +558,7 @@ def MLP_2D(input, W1, W2, activation, group_TP) -> torch.Tensor:
     # W2[L, d'/TP, d]
     # activation [N/DP, d'/TP]
     activation = torch.matmul(input, W1)
-    activation = torch.nn.functional.gelu(activation)
+    # activation = torch.nn.functional.gelu(activation)
     output = torch.matmul(activation, W2)
     dist.all_reduce(output, group=group_TP)
     return output
