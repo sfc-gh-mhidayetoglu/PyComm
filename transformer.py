@@ -113,6 +113,9 @@ for i in range(num_layers):
     embedding = MLP_2D(embedding_, W1[i], W2[i], activation, group_TP)
 logits = torch.matmul(embedding, lm_heads) # [N/DP, k/TP]
 
+if my_rank == root_rank:
+    print(logits)
+
 torch.cuda.synchronize()
 dist.barrier()
 if my_rank == root_rank:
