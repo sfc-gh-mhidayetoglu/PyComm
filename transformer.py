@@ -110,6 +110,8 @@ dist.barrier()
 embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type) # [N/DP, d]
 for i in range(num_layers):
     embedding_ = attention_2D(embedding, QKV[i], O[i], attention, group_TP, group_DP)
+    if my_rank == root_rank:
+        print(embedding_)
     embedding = MLP_2D(embedding_, W1[i], W2[i], activation, group_TP)
 logits = torch.matmul(embedding, lm_heads) # [N/DP, k/TP]
 
