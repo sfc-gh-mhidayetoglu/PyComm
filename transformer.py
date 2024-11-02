@@ -12,7 +12,7 @@ def attention_2D(input, QKV, O, attention, group_TP, group_DP) -> torch.Tensor:
     # compute attention
     attention = torch.matmul(qkv_[0], qkv_[1].transpose(-2, -1))
     # compute scores
-    attention = torch.nn.functional.softmax(attention, dim=-1)
+    attention = torch.nn.functional.softmax(attention/hidden_dim, dim=-1)
     c_ = torch.matmul(attention, qkv_[2])
     # all-to-all within DP
     c_ = torch.transpose(c_, 0, 1).contiguous()
