@@ -15,8 +15,9 @@ def attention_2D(input, QKV, O, attention, group_TP, group_DP) -> torch.Tensor:
     attention = torch.nn.functional.softmax(attention, dim=-1)
     c_ = torch.matmul(attention, qkv_[2])
     # all-to-all within DP
+    c_ = torch.transpose(c_, 0, 1).contiguous()
     c = torch.empty(DP, seq_length//DP, num_heads//TP//DP, hidden_dim//num_heads, device=my_device, dtype=type)
-    dist.all_to_all_single(c, c_.transpose(0, 1).contiguous(), group=group_DP)
+    dist.all_to_all_single(c, c_, group=group_DP)
     c = torch.transpose(c, 0, 1).reshape((seq_length//DP, hidden_dim//TP))
     # compute output
     output = torch.matmul(c, O)
