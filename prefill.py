@@ -12,7 +12,7 @@ def attention_2D(input, QKV, O, attention, group_TP, group_DP) -> torch.Tensor:
     # compute attention
     attention = torch.matmul(qkv_[0], qkv_[1].transpose(-2, -1))
     # compute scores
-    attention = torch.nn.functional.softmax(attention/hidden_dim, dim=-1)
+    attention = torch.nn.functional.softmax(attention, dim=-1)
     c_ = torch.matmul(attention, qkv_[2])
     # all-to-all within DP
     c_ = torch.transpose(c_, 0, 1).contiguous()
@@ -110,13 +110,8 @@ dist.barrier()
 embedding = torch.randn(seq_length//DP, hidden_dim, device=my_device, dtype=type) # [N/DP, d]
 for i in range(num_layers):
     embedding_ = attention_2D(embedding, QKV[i], O[i], attention, group_TP, group_DP)
-    if my_rank == root_rank:
-        print(embedding_)
     embedding = MLP_2D(embedding_, W1[i], W2[i], activation, group_TP)
 logits = torch.matmul(embedding, lm_heads) # [N/DP, k/TP]
-
-if my_rank == root_rank:
-    print(logits)
 
 torch.cuda.synchronize()
 dist.barrier()
