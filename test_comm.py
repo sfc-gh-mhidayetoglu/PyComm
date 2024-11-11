@@ -40,22 +40,16 @@ def find_max(time):
 
 # import number of elements
 data = np.loadtxt('log_1_request.txt', dtype=int)
-
-if my_rank == root_rank:
-    print(data)
-    print(max(data))
-
-exit()
-
-count = 8388608
+count = max(data)
 type = torch.bfloat16
-
 buff = torch.empty(count, dtype=type, device=my_device)
 bytes = buff.numel() * buff.element_size()
+
 if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()))
     print(data)
     print(f"Buffer size in MB: {bytes / 1e6}")
+exit()
 
 log_new = open('log.txt', 'w')
 event_start = torch.cuda.Event(enable_timing=True)
