@@ -53,7 +53,7 @@ if my_rank == root_rank:
 # event_start = torch.cuda.Event(enable_timing=True)
 # event_end = torch.cuda.Event(enable_timing=True)
 
-for i in range(data):
+for i in range(len(data)):
     buff_ = buff.narrow(0, 0, data[i])
     # bytes = buff_.numel() * buff_.element_size()
     # torch.cuda.synchronize()
