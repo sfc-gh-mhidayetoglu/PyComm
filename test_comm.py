@@ -39,10 +39,11 @@ def find_max(time):
     return time_max.item()
 
 # import number of elements
-data = np.loadtxt('log_1_request.txt')
+data = np.loadtxt('log_1_request.txt', dtype=int)
 
 if my_rank == root_rank:
     print(data)
+    print(max(data))
 
 exit()
 
