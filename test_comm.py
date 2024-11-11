@@ -37,7 +37,7 @@ def find_max(time):
     return time_max.item()
 
 # import number of elements
-data = np.loadtxt('log_33_request.txt', dtype=int)
+data = np.loadtxt('log_34_request.txt', dtype=int)
 count = max(data)
 type = torch.bfloat16
 buff = torch.empty(count, dtype=type, device=my_device)
