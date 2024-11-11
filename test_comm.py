@@ -31,6 +31,9 @@ torch.cuda.set_device(my_rank % torch.cuda.device_count())
 my_device = torch.cuda.current_device()
 root_rank = 7
 
+print(f"Rank: {my_rank}, Device: {my_device}, World Size: {world_size}")
+exit()
+
 def find_max(time):
     time_max = torch.tensor([time], device=my_device)
     dist.all_reduce(time_max, op=dist.ReduceOp.MAX)
