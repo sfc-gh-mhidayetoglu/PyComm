@@ -31,8 +31,6 @@ torch.cuda.set_device(my_rank % torch.cuda.device_count())
 my_device = torch.cuda.current_device()
 root_rank = 7
 
-print(f"Rank: {my_rank}, Device: {my_device}, World Size: {world_size}")
-
 def find_max(time):
     time_max = torch.tensor([time], device=my_device)
     dist.all_reduce(time_max, op=dist.ReduceOp.MAX)
@@ -48,6 +46,7 @@ bytes = buff.numel() * buff.element_size()
 if my_rank == root_rank:
     print("my_rank " + str(my_rank) + "/" + str(world_size) + " my_device " + str(my_device) + "/" + str(torch.cuda.device_count()))
     print(data)
+    print(count)
     print(f"Buffer size in MB: {bytes / 1e6}")
 exit()
 
