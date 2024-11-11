@@ -62,9 +62,9 @@ for i in range(0, 3000):
     dist.barrier()
     time_start = time.perf_counter()
     event_start.record()
-    if custom:
+    if custom == True:
         buff_, _ = comm.all_reduce(buff_)
-    else
+    else:
         dist.all_reduce(buff_)
     event_end.record()
     torch.cuda.synchronize()
