@@ -60,7 +60,7 @@ for i in range(len(data)):
     # dist.barrier()
     # time_start = time.perf_counter()
     # event_start.record()
-    if custom == True:
+    if custom:
         buff_, _ = comm.all_reduce(buff_)
     else:
         dist.all_reduce(buff_)
