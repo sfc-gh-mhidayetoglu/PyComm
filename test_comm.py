@@ -32,7 +32,6 @@ my_device = torch.cuda.current_device()
 root_rank = 7
 
 print(f"Rank: {my_rank}, Device: {my_device}, World Size: {world_size}")
-exit()
 
 def find_max(time):
     time_max = torch.tensor([time], device=my_device)
@@ -40,7 +39,12 @@ def find_max(time):
     return time_max.item()
 
 # import number of elements
-data = np.loadtxt('log_0.txt', usecols=4, dtype=int)
+data = np.loadtxt('log_1_request.txt')
+
+if my_rank == root_rank:
+    print(data)
+
+exit()
 
 count = 8388608
 type = torch.bfloat16
